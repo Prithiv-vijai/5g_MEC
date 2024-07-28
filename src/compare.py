@@ -1,30 +1,26 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def plot_efficiency_distribution(df1, df2=None):
-    # Combine datasets if a second dataset is provided
-    if df2 is not None:
-        df = pd.concat([df1, df2], ignore_index=True)
-    else:
-        df = df1
+# Load the datasets
+df1 = pd.read_csv(r'../output/updated_dataset_with_efficiency.csv')  # First dataset
+df2 = pd.read_csv(r'../data/preprocessed_augmented_dataset.csv')  # Second dataset
 
-    # Ensure the Efficiency column exists
-    if 'Efficiency' not in df.columns:
-        raise ValueError("The 'Efficiency' column is missing from the dataset.")
-
-    # Plot frequency distribution of Efficiency
-    plt.figure(figsize=(10, 6))
-    plt.hist(df['Efficiency'].dropna(), bins=30, edgecolor='black', alpha=0.7)
+# Check if 'Efficiency' column exists in both datasets
+if 'Efficiency' in df1.columns and 'Efficiency' in df2.columns:
+    plt.figure(figsize=(12, 6))
+    
+    # Plot histograms for both datasets
+    plt.hist(df1['Efficiency'], bins=10, alpha=0.5, label='Dataset 1', edgecolor='black')
+    plt.hist(df2['Efficiency'], bins=10, alpha=0.5, label='Dataset 2', edgecolor='black')
+    
+    plt.title('Comparison of Efficiency Distributions')
     plt.xlabel('Efficiency')
     plt.ylabel('Frequency')
-    plt.title('Frequency Distribution of Efficiency')
+    plt.legend(loc='upper right')
     plt.grid(True)
+    
+    # Save the comparison plot
+    plt.savefig('../output/efficiency_comparison.png')
     plt.show()
-
-# Example usage:
-# Load your datasets
-df1 = pd.read_csv('..\data\preprocessed_augmented_dataset.csv')
-df2 = pd.read_csv('..\output\updated_dataset_with_efficiency.csv')  # Optional
-
-# Plot distribution
-plot_efficiency_distribution(df1, df2)
+else:
+    print("The 'Efficiency' column is missing in one or both datasets.")
