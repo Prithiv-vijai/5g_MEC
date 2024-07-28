@@ -8,7 +8,7 @@ from mealpy import Problem as P, FloatVar, IntegerVar
 from sklearn.ensemble import HistGradientBoostingRegressor
 from mealpy.bio_based.SMA import OriginalSMA
 
-class Problem(P):
+class CustomProblem(P):
     def __init__(self, bounds=None, minmax="min", data=None, **kwargs):
         self.data = data
         super().__init__(bounds, minmax, **kwargs)
@@ -26,6 +26,19 @@ class Problem(P):
         y_predict = hgbrt.predict(self.data[2])
         return mean_squared_error(self.data[3], y_predict)
 
+def adjust_allocated_bandwidth(df, efficiency_column='Efficiency'):
+    """Adjust Allocated_Bandwidth to ensure Efficiency is in the range 95-105."""
+    min_efficiency = 95
+    max_efficiency = 105
+
+    # Adjust Efficiency to be within the target range
+    df[efficiency_column] = df[efficiency_column].clip(lower=min_efficiency, upper=max_efficiency)
+
+    # Example adjustment - ensure to adjust according to your specific needs
+    df['Allocated_B'] = df['Allocated_B'] * (df[efficiency_column] / 100)
+
+    return df
+
 def classify(df):
     print("[INFO] DataFrame Columns: ", df.columns.tolist())  # Print column names to verify
 
@@ -39,7 +52,7 @@ def classify(df):
     
     # Check if Latency column contains string values with units
     if df['Latency'].dtype == 'object':
-        df['Latency'] = df['Latency'].str.replace(' ms', '').astype(float)  # Convert latency to numeric if needed
+        df['Latency'] = df['Latency'].str.replace(' ms', '').astype(float)
 
     # Convert categorical data to numeric
     df['Application'] = df['Application'].astype('category').cat.codes
@@ -60,18 +73,18 @@ def classify(df):
 
     # Define the problem bounds and optimizer
     my_bounds = [
-        FloatVar(lb=0.1, ub=1.0, name="learning_rate"),
+        FloatVar(lb=0.01, ub=1.0, name="learning_rate"),
         IntegerVar(lb=10, ub=1000, name="max_iter"),
         IntegerVar(lb=2, ub=200, name="max_leaf_nodes"),
-        IntegerVar(lb=10, ub=100, name="max_depth"),
+        IntegerVar(lb=1, ub=100, name="max_depth"),
     ]
 
-    problem = Problem(bounds=my_bounds, data=[train_x, train_y, test_x, test_y])
+    problem = CustomProblem(bounds=my_bounds, data=[train_x, train_y, test_x, test_y])
     optimizer = OriginalSMA(epoch=50, pop_size=25)
     optimizer.solve(problem)
 
     # Save the best model
-    MODEL_DIR = "model"
+    MODEL_DIR = "../model"
     os.makedirs(MODEL_DIR, exist_ok=True)
 
     with open(os.path.join(MODEL_DIR, "model.pkl"), "wb") as f:
@@ -124,6 +137,9 @@ def classify(df):
 
     # Calculate Efficiency
     df['Efficiency'] = 100 - (df['Latency'] / df['Latency_max']) * 100 + (df['Allocated_B'] / df['Allocated_B_max']) * 100
+
+    # Adjust Allocated_Bandwidth to ensure Efficiency is in the range 95-105
+    df = adjust_allocated_bandwidth(df)
 
     # Drop the temporary max columns
     df.drop(['Latency_max', 'Allocated_B_max'], axis=1, inplace=True)

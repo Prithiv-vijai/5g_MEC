@@ -1,45 +1,30 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import os
 
-def load_data(old_dataset_path, new_dataset_path):
-    """Load the old and new datasets."""
-    old_df = pd.read_csv(old_dataset_path)
-    new_df = pd.read_csv(new_dataset_path)
-    return old_df, new_df
+def plot_efficiency_distribution(df1, df2=None):
+    # Combine datasets if a second dataset is provided
+    if df2 is not None:
+        df = pd.concat([df1, df2], ignore_index=True)
+    else:
+        df = df1
 
-def plot_efficiency_comparison(old_df, new_df, efficiency_column='Efficiency', output_dir='../output'):
-    """Plot the efficiency of all users from both datasets and save the plot to the output directory."""
-    plt.figure(figsize=(12, 6))
-    
-    # Plot efficiency for old dataset
-    plt.hist(old_df[efficiency_column], bins=30, alpha=0.5, label='Old Dataset', color='blue')
-    
-    # Plot efficiency for new dataset
-    plt.hist(new_df[efficiency_column], bins=30, alpha=0.5, label='New Dataset', color='green')
-    
+    # Ensure the Efficiency column exists
+    if 'Efficiency' not in df.columns:
+        raise ValueError("The 'Efficiency' column is missing from the dataset.")
+
+    # Plot frequency distribution of Efficiency
+    plt.figure(figsize=(10, 6))
+    plt.hist(df['Efficiency'].dropna(), bins=30, edgecolor='black', alpha=0.7)
     plt.xlabel('Efficiency')
-    plt.ylabel('Number of Users')
-    plt.title('Efficiency Distribution in Old and New Datasets')
-    plt.legend()
+    plt.ylabel('Frequency')
+    plt.title('Frequency Distribution of Efficiency')
     plt.grid(True)
+    plt.show()
 
-    # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
+# Example usage:
+# Load your datasets
+df1 = pd.read_csv('..\data\preprocessed_augmented_dataset.csv')
+df2 = pd.read_csv('..\output\updated_dataset_with_efficiency.csv')  # Optional
 
-    # Save the plot
-    plot_file_path = os.path.join(output_dir, 'efficiency_comparison.png')
-    plt.savefig(plot_file_path)
-    plt.close()
-    print(f"[INFO] Efficiency comparison plot saved to {plot_file_path}")
-
-if __name__ == "__main__":
-    # Paths to your datasets
-    old_dataset_path = '../data/preprocessed_augmented_dataset.csv'  # Old dataset path
-    new_dataset_path = '../output/updated_dataset_with_efficiency.csv'  # New dataset path
-
-    # Load datasets
-    old_df, new_df = load_data(old_dataset_path, new_dataset_path)
-    
-    # Plot efficiency comparison and save it to the output folder
-    plot_efficiency_comparison(old_df, new_df)
+# Plot distribution
+plot_efficiency_distribution(df1, df2)
