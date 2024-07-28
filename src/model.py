@@ -1,111 +1,142 @@
-# -*- coding: utf-8 -*-
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-from sklearn.experimental import enable_hist_gradient_boosting
-from sklearn.ensemble import HistGradientBoostingRegressor
 import os
+import pickle
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
+from mealpy import Problem as P, FloatVar, IntegerVar
+from sklearn.ensemble import HistGradientBoostingRegressor
+from mealpy.bio_based.SMA import OriginalSMA
 
-# Create the plots directory if it doesn't exist
-plots_dir = 'plots'
-if not os.path.exists(plots_dir):
-    os.makedirs(plots_dir)
+class Problem(P):
+    def __init__(self, bounds=None, minmax="min", data=None, **kwargs):
+        self.data = data
+        super().__init__(bounds, minmax, **kwargs)
 
-# Load your dataset
-df = pd.read_csv('preprocessed_augmented_dataset.csv')
+    def obj_func(self, params):
+        params_decoded = self.decode_solution(params)
+        hgbrt = HistGradientBoostingRegressor(
+            learning_rate=params_decoded["learning_rate"],
+            max_iter=params_decoded["max_iter"],
+            max_leaf_nodes=params_decoded["max_leaf_nodes"],
+            max_depth=params_decoded["max_depth"],
+            random_state=1
+        )
+        hgbrt.fit(self.data[0], self.data[1])
+        y_predict = hgbrt.predict(self.data[2])
+        return mean_squared_error(self.data[3], y_predict)
 
-# Prepare features and target variable
-X = df[['Application_Type', 'Latency', 'Required_Bandwidth', 'Efficiency']]
-y = df['Allocated_Bandwidth']
+def classify(df):
+    print("[INFO] DataFrame Columns: ", df.columns.tolist())  # Print column names to verify
 
-# Define preprocessor for numerical and categorical features
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('num', StandardScaler(), ['Latency', 'Required_Bandwidth', 'Efficiency']),
-        ('cat', OneHotEncoder(sparse_output=False), ['Application_Type'])  # Ensure dense output
-    ])
+    # Rename columns if they do not match the expected names
+    if 'Application_Type' in df.columns:
+        df.rename(columns={'Application_Type': 'Application'}, inplace=True)
+    if 'Required_Bandwidth' in df.columns:
+        df.rename(columns={'Required_Bandwidth': 'Required_B'}, inplace=True)
+    if 'Allocated_Bandwidth' in df.columns:
+        df.rename(columns={'Allocated_Bandwidth': 'Allocated_B'}, inplace=True)
+    
+    # Check if Latency column contains string values with units
+    if df['Latency'].dtype == 'object':
+        df['Latency'] = df['Latency'].str.replace(' ms', '').astype(float)  # Convert latency to numeric if needed
 
-# Define models to evaluate
-models = {
-    'HistGradientBoostingRegressor': HistGradientBoostingRegressor(),
-    'GradientBoostingRegressor': GradientBoostingRegressor(),
-    'RandomForestRegressor': RandomForestRegressor()
-}
+    # Convert categorical data to numeric
+    df['Application'] = df['Application'].astype('category').cat.codes
+    
+    # Select features and target
+    x = df[['Latency', 'Application', 'Required_B']]
+    y = df['Allocated_B']
+    
+    print("[INFO] Features (x) Columns: ", x.columns.tolist())
+    print("[INFO] Target (y) Column: ", 'Allocated_B')
 
-# Store results
-results = {}
+    # Split data into train and test sets
+    print("[INFO] Splitting Data Into Train|Test")
+    train_x, test_x, train_y, test_y = train_test_split(x, y, test_size=0.3, random_state=1)
+    print("[INFO] Data Shape :: {0}".format(x.shape))
+    print("[INFO] Train Data Shape :: {0}".format(train_x.shape))
+    print("[INFO] Test Data Shape :: {0}".format(test_x.shape))
 
-for name, model in models.items():
-    # Create a pipeline with preprocessing and model
-    pipeline = Pipeline(steps=[('preprocessor', preprocessor),
-                               ('model', model)])
+    # Define the problem bounds and optimizer
+    my_bounds = [
+        FloatVar(lb=0.1, ub=1.0, name="learning_rate"),
+        IntegerVar(lb=10, ub=1000, name="max_iter"),
+        IntegerVar(lb=2, ub=200, name="max_leaf_nodes"),
+        IntegerVar(lb=10, ub=100, name="max_depth"),
+    ]
 
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    problem = Problem(bounds=my_bounds, data=[train_x, train_y, test_x, test_y])
+    optimizer = OriginalSMA(epoch=50, pop_size=25)
+    optimizer.solve(problem)
 
-    # Train the model
-    pipeline.fit(X_train, y_train)
+    # Save the best model
+    MODEL_DIR = "model"
+    os.makedirs(MODEL_DIR, exist_ok=True)
 
-    # Make predictions
-    y_pred = pipeline.predict(X_test)
+    with open(os.path.join(MODEL_DIR, "model.pkl"), "wb") as f:
+        pickle.dump(optimizer, f)
+    
+    print(f"[INFO] Best Agent :: {optimizer.g_best.id}")
+    print(f"[INFO] Best Solution :: {optimizer.g_best.solution}")
+    print(f"[INFO] Best MSE :: {optimizer.g_best.target.fitness}")
+    print(f"[INFO] Best Parameters :: {optimizer.problem.decode_solution(optimizer.g_best.solution)}")
 
-    # Evaluate the model
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
+    # Plot actual vs predicted values
+    best_params = optimizer.problem.decode_solution(optimizer.g_best.solution)
+    best_model = HistGradientBoostingRegressor(
+        learning_rate=best_params["learning_rate"],
+        max_iter=best_params["max_iter"],
+        max_leaf_nodes=best_params["max_leaf_nodes"],
+        max_depth=best_params["max_depth"],
+        random_state=1
+    )
+    best_model.fit(train_x, train_y)
+    y_pred = best_model.predict(test_x)
 
-    results[name] = {
-        'MSE': mse,
-        'R2': r2
-    }
+    # Create output directory if it doesn't exist
+    OUTPUT_DIR = "../output"
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Find the best model
-best_model_name = max(results, key=lambda x: results[x]['R2'])
-best_model = models[best_model_name]
+    plt.figure(figsize=(10, 6))
+    plt.plot(test_y.values, label='Actual', color='blue')
+    plt.plot(y_pred, label='Predicted', color='red')
+    plt.xlabel('Sample')
+    plt.ylabel('Allocated Bandwidth')
+    plt.title('Actual vs Predicted Allocated Bandwidth')
+    plt.legend()
+    plt.savefig(os.path.join(OUTPUT_DIR, "actual_vs_predicted.png"))  # Save the plot
+    plt.close()
 
-print(f"Best model: {best_model_name}")
-print(f"Mean Squared Error: {results[best_model_name]['MSE']}")
-print(f"R2 Score: {results[best_model_name]['R2']}")
+    # Update dataframe with predicted Allocated_B
+    df['Allocated_B'] = best_model.predict(x)
 
-# Make predictions with the best model
-pipeline = Pipeline(steps=[('preprocessor', preprocessor),
-                           ('model', best_model)])
-X_test_transformed = preprocessor.transform(X_test)
-y_best_pred = pipeline.predict(X_test)
+    # Calculate Efficiency
+    # Group by Application and calculate max values within each group
+    max_values = df.groupby('Application').agg({
+        'Latency': 'max',
+        'Allocated_B': 'max'
+    }).reset_index()
+    max_values.columns = ['Application', 'Latency_max', 'Allocated_B_max']
 
-# Create a DataFrame for visualization
-results_df = pd.DataFrame({
-    'Actual': y_test,
-    'Predicted': y_best_pred
-}).reset_index(drop=True)
+    # Merge max values back to the original dataframe
+    df = df.merge(max_values, on='Application')
 
-# Plot Actual vs Predicted
-plt.figure(figsize=(12, 6))
-sns.scatterplot(data=results_df, x='Actual', y='Predicted', alpha=0.6, label='Predicted vs Actual')
-plt.plot([results_df['Actual'].min(), results_df['Actual'].max()],
-         [results_df['Actual'].min(), results_df['Actual'].max()],
-         'r--', lw=2, label='Perfect Prediction')
-plt.title('Actual vs Predicted Allocated Bandwidth')
-plt.xlabel('Actual Allocated Bandwidth (KBps)')
-plt.ylabel('Predicted Allocated Bandwidth (KBps)')
-plt.legend()
-plt.savefig(os.path.join(plots_dir, 'actual_vs_predicted.png'))
-plt.close()
+    # Calculate Efficiency
+    df['Efficiency'] = 100 - (df['Latency'] / df['Latency_max']) * 100 + (df['Allocated_B'] / df['Allocated_B_max']) * 100
 
-# Plot residuals
-results_df['Residual'] = results_df['Actual'] - results_df['Predicted']
+    # Drop the temporary max columns
+    df.drop(['Latency_max', 'Allocated_B_max'], axis=1, inplace=True)
 
-plt.figure(figsize=(12, 6))
-sns.histplot(results_df['Residual'], bins=30, kde=True)
-plt.title('Residual Distribution')
-plt.xlabel('Residual (Actual - Predicted)')
-plt.ylabel('Frequency')
-plt.savefig(os.path.join(plots_dir, 'residual_distribution.png'))
-plt.close()
+    # Save the updated dataframe to a new CSV
+    OUTPUT_DATA_DIR = "../output"
+    os.makedirs(OUTPUT_DATA_DIR, exist_ok=True)
+
+    df.to_csv(os.path.join(OUTPUT_DATA_DIR, "updated_dataset_with_efficiency.csv"), index=False)
+
+    print("[INFO] Efficiency calculation completed and saved to 'updated_dataset_with_efficiency.csv'")
+
+if __name__ == "__main__":
+    # Read the dataset
+    df = pd.read_csv('../data/preprocessed_augmented_dataset.csv')  # Replace with your actual CSV file path
+    classify(df)
