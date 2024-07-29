@@ -28,8 +28,8 @@ class CustomProblem(P):
 
 def adjust_allocated_bandwidth(df, efficiency_column='Efficiency'):
     """Adjust Allocated_Bandwidth to ensure Efficiency is in the range 95-105."""
-    min_efficiency = 95
-    max_efficiency = 105
+    min_efficiency = 80
+    max_efficiency = 115
 
     # Adjust Efficiency to be within the target range
     df[efficiency_column] = df[efficiency_column].clip(lower=min_efficiency, upper=max_efficiency)
