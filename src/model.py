@@ -26,19 +26,6 @@ class CustomProblem(P):
         y_predict = hgbrt.predict(self.data[2])
         return mean_squared_error(self.data[3], y_predict)
 
-def adjust_allocated_bandwidth(df, efficiency_column='Efficiency'):
-    """Adjust Allocated_Bandwidth to ensure Efficiency is in the range 95-105."""
-    min_efficiency = 80
-    max_efficiency = 115
-
-    # Adjust Efficiency to be within the target range
-    df[efficiency_column] = df[efficiency_column].clip(lower=min_efficiency, upper=max_efficiency)
-
-    # Example adjustment - ensure to adjust according to your specific needs
-    df['Allocated_B'] = df['Allocated_B'] * (df[efficiency_column] / 100)
-
-    return df
-
 def classify(df):
     print("[INFO] DataFrame Columns: ", df.columns.tolist())  # Print column names to verify
 
@@ -124,7 +111,6 @@ def classify(df):
     # Update dataframe with predicted Allocated_B
     df['Allocated_B'] = best_model.predict(x)
 
-    # Calculate Efficiency
     # Group by Application and calculate max values within each group
     max_values = df.groupby('Application').agg({
         'Latency': 'max',
@@ -138,8 +124,11 @@ def classify(df):
     # Calculate Efficiency
     df['Efficiency'] = 100 - (df['Latency'] / df['Latency_max']) * 100 + (df['Allocated_B'] / df['Allocated_B_max']) * 100
 
-    # Adjust Allocated_Bandwidth to ensure Efficiency is in the range 95-105
-    df = adjust_allocated_bandwidth(df)
+    # Adjust Allocated_B to ensure Efficiency is within 85-115
+    df['Allocated_B'] = df.apply(lambda row: row['Allocated_B'] * (100 / row['Efficiency']) if row['Efficiency'] < 85 or row['Efficiency'] > 115 else row['Allocated_B'], axis=1)
+
+    # Recalculate Efficiency after adjustment
+    df['Efficiency'] = 100 - (df['Latency'] / df['Latency_max']) * 100 + (df['Allocated_B'] / df['Allocated_B_max']) * 100
 
     # Drop the temporary max columns
     df.drop(['Latency_max', 'Allocated_B_max'], axis=1, inplace=True)
