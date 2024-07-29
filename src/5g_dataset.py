@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import time
 import os
 
@@ -54,6 +50,10 @@ ranges_by_app = df.groupby('Application_Type').agg({
 ranges_by_app.columns = ['_'.join(col).strip() for col in ranges_by_app.columns.values]
 ranges_by_app.rename(columns={'Application_Type_': 'Application_Type'}, inplace=True)
 
+# Print the ranges for each application type
+print("Ranges identified for each application type:")
+print(ranges_by_app)
+
 def generate_within_range(app_type, num_samples, ranges_by_app):
     ranges = ranges_by_app[ranges_by_app['Application_Type'] == app_type].iloc[0]
 
@@ -86,6 +86,15 @@ for app_type in app_types:
 new_df = pd.concat(new_data_frames, ignore_index=True)
 augmented_df = pd.concat([df, new_df], ignore_index=True)
 
+# Reset User_ID to be unique across all rows
+def generate_unique_ids(num_records):
+    return np.arange(1, num_records + 1)
+
+# Generate new User_IDs for all rows
+num_records = len(augmented_df)
+new_user_ids = generate_unique_ids(num_records)
+augmented_df['User_ID'] = new_user_ids
+
 # Save the augmented dataset
 output_file = '../data/augmented_dataset.csv'
 
@@ -104,10 +113,8 @@ augmented_df = pd.read_csv('../data/augmented_dataset.csv')
 if 'Signal_Strength' in augmented_df.columns:
     augmented_df.drop('Signal_Strength', axis=1, inplace=True)
 
-# 2. Clean User_ID column to retain only numeric part
-# Extract numeric part and fill NaNs with a placeholder value (e.g., -1)
-augmented_df['User_ID'] = augmented_df['User_ID'].str.extract('(\d+)').astype(float)
-augmented_df['User_ID'] = augmented_df['User_ID'].fillna(-1).astype(int)
+# 2. Clean User_ID column to retain only numeric part (if needed)
+augmented_df['User_ID'] = augmented_df['User_ID'].astype(int)
 
 # 3. Calculate Efficiency by Application_Type
 def calculate_efficiency(df):
@@ -132,7 +139,7 @@ def calculate_efficiency(df):
 augmented_df = calculate_efficiency(augmented_df)
 
 # Save the preprocessed dataset
-output_file_preprocessed = '../datapreprocessed_augmented_dataset.csv'
+output_file_preprocessed = '../data/preprocessed_augmented_dataset.csv'
 
 for _ in range(5):  # Retry up to 5 times
     try:
@@ -144,4 +151,3 @@ for _ in range(5):  # Retry up to 5 times
         time.sleep(1)
 else:
     print(f"Failed to save {output_file_preprocessed}. Please check the file permissions and ensure it's not open in another program.")
-

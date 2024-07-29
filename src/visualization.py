@@ -7,7 +7,7 @@ import os
 df = pd.read_csv('../data/preprocessed_augmented_dataset.csv')
 
 # Create a directory to store the graphs if it doesn't exist
-graphs_dir = '../graphs'
+graphs_dir = '../graphs/visualization'
 os.makedirs(graphs_dir, exist_ok=True)
 
 # Visualize the average allocated bandwidth for each application type

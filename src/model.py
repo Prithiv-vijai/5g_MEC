@@ -95,7 +95,7 @@ def classify(df):
     y_pred = best_model.predict(test_x)
 
     # Create output directory if it doesn't exist
-    OUTPUT_DIR = "../output"
+    OUTPUT_DIR = "../graphs/model_output"
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     plt.figure(figsize=(10, 6))
@@ -134,12 +134,12 @@ def classify(df):
     df.drop(['Latency_max', 'Allocated_B_max'], axis=1, inplace=True)
 
     # Save the updated dataframe to a new CSV
-    OUTPUT_DATA_DIR = "../output"
+    OUTPUT_DATA_DIR = "../data"
     os.makedirs(OUTPUT_DATA_DIR, exist_ok=True)
 
-    df.to_csv(os.path.join(OUTPUT_DATA_DIR, "updated_dataset_with_efficiency.csv"), index=False)
+    df.to_csv(os.path.join(OUTPUT_DATA_DIR, "optimized_dataset.csv"), index=False)
 
-    print("[INFO] Efficiency calculation completed and saved to 'updated_dataset_with_efficiency.csv'")
+    print("[INFO] Efficiency calculation completed and saved to 'optimized_dataset.csv'")
 
 if __name__ == "__main__":
     # Read the dataset
