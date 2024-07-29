@@ -3,11 +3,6 @@ import numpy as np
 import time
 import os
 
-# Create the plots directory if it doesn't exist
-plots_dir = 'plots'
-if not os.path.exists(plots_dir):
-    os.makedirs(plots_dir)
-
 # Load your existing dataset
 df = pd.read_csv('../data/dataset.csv')
 
