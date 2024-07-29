@@ -10,8 +10,8 @@ if 'Efficiency' in df1.columns and 'Efficiency' in df2.columns:
     plt.figure(figsize=(12, 6))
     
     # Plot histograms for both datasets
-    plt.hist(df1['Efficiency'], bins=10, alpha=0.5, label='Dataset 1', edgecolor='black')
-    plt.hist(df2['Efficiency'], bins=10, alpha=0.5, label='Dataset 2', edgecolor='black')
+    plt.hist(df1['Efficiency'], bins=10, alpha=0.5, label='Optimised allocation', edgecolor='black')
+    plt.hist(df2['Efficiency'], bins=10, alpha=0.5, label='Normal allocation', edgecolor='black')
     
     plt.title('Comparison of Efficiency Distributions')
     plt.xlabel('Efficiency')
