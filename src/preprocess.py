@@ -1,10 +1,9 @@
 import pandas as pd
 import numpy as np
-import time
-import os
+import re
 
 # Load your existing dataset
-df = pd.read_csv('../data/dataset.csv')
+df = pd.read_csv('../data/datasets.csv')
 
 # Convert Bandwidth and Latency values as before
 def convert_bandwidth_to_kbps(bandwidth):
@@ -34,36 +33,48 @@ df['Required_Bandwidth'] = df['Required_Bandwidth'].apply(convert_bandwidth_to_k
 df['Allocated_Bandwidth'] = df['Allocated_Bandwidth'].apply(convert_bandwidth_to_kbps)
 df['Latency'] = df['Latency'].apply(convert_latency_to_ms)
 
+# Preprocess the Signal_Strength column to remove the unit 'dBm'
+df['Signal_Strength'] = df['Signal_Strength'].apply(lambda x: re.sub(r' dBm', '', x)).astype(float)
+
 # Calculate min and max ranges for each application type
 ranges_by_app = df.groupby('Application_Type').agg({
     'Latency': ['min', 'max'],
     'Required_Bandwidth': ['min', 'max'],
-    'Allocated_Bandwidth': ['min', 'max']
+    'Allocated_Bandwidth': ['min', 'max'],
+    'Signal_Strength': ['min', 'max']
 }).reset_index()
 
 # Flatten column names
 ranges_by_app.columns = ['_'.join(col).strip() for col in ranges_by_app.columns.values]
 ranges_by_app.rename(columns={'Application_Type_': 'Application_Type'}, inplace=True)
 
-# Print the ranges for each application type
-print("Ranges identified for each application type:")
-print(ranges_by_app)
-
-def generate_within_range(app_type, num_samples, ranges_by_app):
+def generate_within_range(app_type, num_samples, ranges_by_app, df):
     ranges = ranges_by_app[ranges_by_app['Application_Type'] == app_type].iloc[0]
 
-    latency_min = ranges['Latency_min']
-    latency_max = ranges['Latency_max']
-    bandwidth_req_min = ranges['Required_Bandwidth_min']
-    bandwidth_req_max = ranges['Required_Bandwidth_max']
-    bandwidth_alloc_min = ranges['Allocated_Bandwidth_min']
-    bandwidth_alloc_max = ranges['Allocated_Bandwidth_max']
+    if len(df[df['Application_Type'] == app_type]) == 1:
+        original_row = df[df['Application_Type'] == app_type].iloc[0]
+        data = {
+            'Latency': np.random.uniform(original_row['Latency'] * 0.9, original_row['Latency'] * 1.1, num_samples),
+            'Required_Bandwidth': np.random.uniform(original_row['Required_Bandwidth'] * 0.9, original_row['Required_Bandwidth'] * 1.1, num_samples),
+            'Allocated_Bandwidth': np.random.uniform(original_row['Allocated_Bandwidth'] * 0.9, original_row['Allocated_Bandwidth'] * 1.1, num_samples),
+            'Signal_Strength': np.random.uniform(original_row['Signal_Strength'] * 0.9, original_row['Signal_Strength'] * 1.1, num_samples)
+        }
+    else:
+        latency_min = ranges['Latency_min']
+        latency_max = ranges['Latency_max']
+        bandwidth_req_min = ranges['Required_Bandwidth_min']
+        bandwidth_req_max = ranges['Required_Bandwidth_max']
+        bandwidth_alloc_min = ranges['Allocated_Bandwidth_min']
+        bandwidth_alloc_max = ranges['Allocated_Bandwidth_max']
+        signal_strength_min = ranges['Signal_Strength_min']
+        signal_strength_max = ranges['Signal_Strength_max']
 
-    data = {
-        'Latency': np.random.uniform(latency_min, latency_max, num_samples),
-        'Required_Bandwidth': np.random.uniform(bandwidth_req_min, bandwidth_req_max, num_samples),
-        'Allocated_Bandwidth': np.random.uniform(bandwidth_alloc_min, bandwidth_alloc_max, num_samples)
-    }
+        data = {
+            'Latency': np.random.uniform(latency_min, latency_max, num_samples),
+            'Required_Bandwidth': np.random.uniform(bandwidth_req_min, bandwidth_req_max, num_samples),
+            'Allocated_Bandwidth': np.random.uniform(bandwidth_alloc_min, bandwidth_alloc_max, num_samples),
+            'Signal_Strength': np.random.uniform(signal_strength_min, signal_strength_max, num_samples)
+        }
 
     return pd.DataFrame(data)
 
@@ -73,7 +84,7 @@ num_samples_per_type = (15000 - len(df)) // len(app_types)
 
 new_data_frames = []
 for app_type in app_types:
-    new_df = generate_within_range(app_type, num_samples_per_type, ranges_by_app)
+    new_df = generate_within_range(app_type, num_samples_per_type, ranges_by_app, df)
     new_df['Application_Type'] = app_type
     new_data_frames.append(new_df)
 
@@ -89,29 +100,30 @@ def generate_unique_ids(num_records):
 num_records = len(augmented_df)
 new_user_ids = generate_unique_ids(num_records)
 augmented_df['User_ID'] = new_user_ids
+augmented_df=augmented_df.drop('Resource_Allocation', axis=1)
 
 # Save the augmented dataset
 output_file = '../data/augmented_dataset.csv'
+augmented_df.to_csv(output_file, index=False)
+print(f"File saved successfully as {output_file}")
 
-try:
-    augmented_df.to_csv(output_file, index=False)
-    print(f"File saved successfully as {output_file}")
-except PermissionError:
-    print(f"Permission denied: Unable to write to {output_file}. Please check the file permissions and ensure it's not open in another program.")
+# Preprocessing the augmented dataset
+augmented_df = pd.read_csv(output_file)
 
-"""PREPROCESSING"""
+# Convert categorical data to numeric
+augmented_df['Application_Type'] = augmented_df['Application_Type'].astype('category')
+application_type_mapping = dict(enumerate(augmented_df['Application_Type'].cat.categories))
+augmented_df['Application_Type'] = augmented_df['Application_Type'].cat.codes
 
-# Load the augmented dataset
-augmented_df = pd.read_csv('../data/augmented_dataset.csv')
+# Print the mapping of numerical values to Application_Type categories
+print("Application_Type mapping:")
+for num, app_type in application_type_mapping.items():
+    print(f"{num}: {app_type}")
 
-# 1. Remove the Signal_Strength column if it exists
-if 'Signal_Strength' in augmented_df.columns:
-    augmented_df.drop('Signal_Strength', axis=1, inplace=True)
-
-# 2. Clean User_ID column to retain only numeric part (if needed)
+# Clean User_ID column to retain only numeric part
 augmented_df['User_ID'] = augmented_df['User_ID'].astype(int)
 
-# 3. Calculate Efficiency by Application_Type
+# Apply the efficiency calculation
 def calculate_efficiency(df):
     # Group by Application_Type and calculate max values within each group
     max_values = df.groupby('Application_Type').agg({
@@ -130,19 +142,9 @@ def calculate_efficiency(df):
 
     return df
 
-# Apply the efficiency calculation
 augmented_df = calculate_efficiency(augmented_df)
 
-# Save the preprocessed dataset
+# Save the preprocessed and augmented dataset
 output_file_preprocessed = '../data/preprocessed_augmented_dataset.csv'
-
-for _ in range(5):  # Retry up to 5 times
-    try:
-        augmented_df.to_csv(output_file_preprocessed, index=False)
-        print(f"File saved successfully as {output_file_preprocessed}")
-        break
-    except PermissionError:
-        print(f"Permission denied: Unable to write to {output_file_preprocessed}. Retrying...")
-        time.sleep(1)
-else:
-    print(f"Failed to save {output_file_preprocessed}. Please check the file permissions and ensure it's not open in another program.")
+augmented_df.to_csv(output_file_preprocessed, index=False)
+print(f"File saved successfully as {output_file_preprocessed}")

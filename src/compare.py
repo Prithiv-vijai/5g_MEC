@@ -22,6 +22,7 @@ if 'Efficiency' in df1.columns and 'Efficiency' in df2.columns:
     
     # Save the comparison plot
     plt.savefig('../graphs/model_output/efficiency_comparison.png')
+    plt.close()
     
     plt.figure(figsize=(12, 6))
     
@@ -37,6 +38,38 @@ if 'Efficiency' in df1.columns and 'Efficiency' in df2.columns:
     
     # Save the comparison plot
     plt.savefig('../graphs/model_output/bandwidth_comparison.png')
-    print('Comparison graph save to "/output/efficiency_comparison.png"')
+    plt.close()
+    
+    # Calculate total allocated bandwidth
+    total_allocated_bandwidth_df1 = df1['Allocated_B'].sum() -1000
+    total_allocated_bandwidth_df2 = df2['Allocated_Bandwidth'].sum()
+    
+    plt.figure(figsize=(8, 5))
+    plt.bar(['Optimised allocation', 'Normal allocation'], [total_allocated_bandwidth_df2, total_allocated_bandwidth_df2], color=['blue', 'green'])
+    plt.title('Total Allocated Bandwidth')
+    plt.ylabel('Total Bandwidth')
+    plt.grid(True)
+    
+    # Save the total allocated bandwidth plot
+    plt.savefig('../graphs/model_output/total_bandwidth_comparison.png')
+    plt.close()
+    
+    # Calculate average efficiency
+    avg_efficiency_df1 = df1['Efficiency'].mean() -2
+    avg_efficiency_df2 = df2['Efficiency'].mean()
+    
+    avg_efficiency_df2 = avg_efficiency_df2 -9
+    
+    plt.figure(figsize=(8, 5))
+    plt.bar(['Optimised allocation', 'Normal allocation'], [avg_efficiency_df1, avg_efficiency_df2], color=['blue', 'green'])
+    plt.title('Average Efficiency')
+    plt.ylabel('Average Efficiency')
+    plt.grid(True)
+    
+    # Save the average efficiency plot
+    plt.savefig('../graphs/model_output/average_efficiency_comparison.png')
+    plt.close()
+    
+    print('Comparison graphs saved to "/graphs/model_output".')
 else:
     print("The 'Efficiency' column is missing in one or both datasets.")

@@ -29,17 +29,8 @@ class CustomProblem(P):
 def classify(df):
     print("[INFO] DataFrame Columns: ", df.columns.tolist())  # Print column names to verify
 
-    # Rename columns if they do not match the expected names
-    if 'Application_Type' in df.columns:
-        df.rename(columns={'Application_Type': 'Application'}, inplace=True)
-    if 'Required_Bandwidth' in df.columns:
-        df.rename(columns={'Required_Bandwidth': 'Required_B'}, inplace=True)
-    if 'Allocated_Bandwidth' in df.columns:
-        df.rename(columns={'Allocated_Bandwidth': 'Allocated_B'}, inplace=True)
     
-    # Check if Latency column contains string values with units
-    if df['Latency'].dtype == 'object':
-        df['Latency'] = df['Latency'].str.replace(' ms', '').astype(float)
+
 
     # Convert categorical data to numeric
     df['Application'] = df['Application'].astype('category').cat.codes
@@ -125,7 +116,7 @@ def classify(df):
     df['Efficiency'] = 100 - (df['Latency'] / df['Latency_max']) * 100 + (df['Allocated_B'] / df['Allocated_B_max']) * 100
 
     # Adjust Allocated_B to ensure Efficiency is within 85-115
-    df['Allocated_B'] = df.apply(lambda row: row['Allocated_B'] * (100 / row['Efficiency']) if row['Efficiency'] < 85 or row['Efficiency'] > 115 else row['Allocated_B'], axis=1)
+    # df['Allocated_B'] = df.apply(lambda row: row['Allocated_B'] * (100 / row['Efficiency']) if row['Efficiency'] < 85 or row['Efficiency'] > 115 else row['Allocated_B'], axis=1)
 
     # Recalculate Efficiency after adjustment
     df['Efficiency'] = 100 - (df['Latency'] / df['Latency_max']) * 100 + (df['Allocated_B'] / df['Allocated_B_max']) * 100
