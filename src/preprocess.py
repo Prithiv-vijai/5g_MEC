@@ -3,7 +3,7 @@ import numpy as np
 import re
 
 # Load your existing dataset
-df = pd.read_csv('../data/datasets.csv')
+df = pd.read_csv('../data/dataset.csv')
 
 # Convert Bandwidth and Latency values as before
 def convert_bandwidth_to_kbps(bandwidth):
@@ -143,6 +143,7 @@ def calculate_efficiency(df):
     return df
 
 augmented_df = calculate_efficiency(augmented_df)
+augmented_df= augmented_df.drop('Timestamp', axis=1)
 
 # Save the preprocessed and augmented dataset
 output_file_preprocessed = '../data/preprocessed_augmented_dataset.csv'
