@@ -1,138 +1,94 @@
 import os
-import pickle
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_squared_error
+import seaborn as sns
 from sklearn.model_selection import train_test_split
-from mealpy import Problem as P, FloatVar, IntegerVar
-from sklearn.ensemble import HistGradientBoostingRegressor
-from mealpy.bio_based.SMA import OriginalSMA
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-class CustomProblem(P):
-    def __init__(self, bounds=None, minmax="min", data=None, **kwargs):
-        self.data = data
-        super().__init__(bounds, minmax, **kwargs)
+# Create the directory if it doesn't exist
+output_dir = '../graphs/model_output'
+os.makedirs(output_dir, exist_ok=True)
 
-    def obj_func(self, params):
-        params_decoded = self.decode_solution(params)
-        hgbrt = HistGradientBoostingRegressor(
-            learning_rate=params_decoded["learning_rate"],
-            max_iter=params_decoded["max_iter"],
-            max_leaf_nodes=params_decoded["max_leaf_nodes"],
-            max_depth=params_decoded["max_depth"],
-            random_state=1
-        )
-        hgbrt.fit(self.data[0], self.data[1])
-        y_predict = hgbrt.predict(self.data[2])
-        return mean_squared_error(self.data[3], y_predict)
+# Load the dataset from a CSV file
+df = pd.read_csv('../data/preprocessed_augmented_dataset.csv')
 
-def classify(df):
-    print("[INFO] DataFrame Columns: ", df.columns.tolist())  # Print column names to verify
+# Define features (X) and target (y)
+X = df[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
+y = df['Efficiency']
 
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Initialize the models
+models = {
+    'Linear Regression': LinearRegression(),
+    'Decision Tree': DecisionTreeRegressor(random_state=42),
+    'Random Forest': RandomForestRegressor(random_state=42),
+    'Gradient Boosting': GradientBoostingRegressor(random_state=42)
+}
+
+# Dictionary to store the results
+results = {}
+predictions = {}
+
+# Train and evaluate each model
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
     
-
-
-    # Convert categorical data to numeric
-    df['Application'] = df['Application'].astype('category').cat.codes
+    mse = mean_squared_error(y_test, y_pred)
+    mae = mean_absolute_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
     
-    # Select features and target
-    x = df[['Latency', 'Application', 'Required_B']]
-    y = df['Allocated_B']
-    
-    print("[INFO] Features (x) Columns: ", x.columns.tolist())
-    print("[INFO] Target (y) Column: ", 'Allocated_B')
+    results[name] = {'MSE': mse, 'MAE': mae, 'R2': r2}
+    predictions[name] = y_pred
 
-    # Split data into train and test sets
-    print("[INFO] Splitting Data Into Train|Test")
-    train_x, test_x, train_y, test_y = train_test_split(x, y, test_size=0.3, random_state=1)
-    print("[INFO] Data Shape :: {0}".format(x.shape))
-    print("[INFO] Train Data Shape :: {0}".format(train_x.shape))
-    print("[INFO] Test Data Shape :: {0}".format(test_x.shape))
+# Print the comparison of the models
+print("Model Comparison:")
+for name, metrics in results.items():
+    print(f"\n{name}:")
+    for metric, value in metrics.items():
+        print(f"  {metric}: {value:.4f}")
 
-    # Define the problem bounds and optimizer
-    my_bounds = [
-        FloatVar(lb=0.01, ub=1.0, name="learning_rate"),
-        IntegerVar(lb=10, ub=1000, name="max_iter"),
-        IntegerVar(lb=2, ub=200, name="max_leaf_nodes"),
-        IntegerVar(lb=1, ub=100, name="max_depth"),
-    ]
+# Visualize the metrics comparison
+metrics_df = pd.DataFrame(results).T
+metrics_df.reset_index(inplace=True)
+metrics_df = metrics_df.rename(columns={'index': 'Model'})
 
-    problem = CustomProblem(bounds=my_bounds, data=[train_x, train_y, test_x, test_y])
-    optimizer = OriginalSMA(epoch=50, pop_size=25)
-    optimizer.solve(problem)
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
-    # Save the best model
-    MODEL_DIR = "../model"
-    os.makedirs(MODEL_DIR, exist_ok=True)
+sns.barplot(x='Model', y='MSE', data=metrics_df, ax=axes[0])
+axes[0].set_title('MSE Comparison')
+axes[0].set_xticklabels(axes[0].get_xticklabels(), rotation=45)
 
-    with open(os.path.join(MODEL_DIR, "model.pkl"), "wb") as f:
-        pickle.dump(optimizer, f)
-    
-    print(f"[INFO] Best Agent :: {optimizer.g_best.id}")
-    print(f"[INFO] Best Solution :: {optimizer.g_best.solution}")
-    print(f"[INFO] Best MSE :: {optimizer.g_best.target.fitness}")
-    print(f"[INFO] Best Parameters :: {optimizer.problem.decode_solution(optimizer.g_best.solution)}")
+sns.barplot(x='Model', y='MAE', data=metrics_df, ax=axes[1])
+axes[1].set_title('MAE Comparison')
+axes[1].set_xticklabels(axes[1].get_xticklabels(), rotation=45)
 
-    # Plot actual vs predicted values
-    best_params = optimizer.problem.decode_solution(optimizer.g_best.solution)
-    best_model = HistGradientBoostingRegressor(
-        learning_rate=best_params["learning_rate"],
-        max_iter=best_params["max_iter"],
-        max_leaf_nodes=best_params["max_leaf_nodes"],
-        max_depth=best_params["max_depth"],
-        random_state=1
-    )
-    best_model.fit(train_x, train_y)
-    y_pred = best_model.predict(test_x)
+sns.barplot(x='Model', y='R2', data=metrics_df, ax=axes[2])
+axes[2].set_title('R2 Comparison')
+axes[2].set_xticklabels(axes[2].get_xticklabels(), rotation=45)
 
-    # Create output directory if it doesn't exist
-    OUTPUT_DIR = "../graphs/model_output"
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+plt.tight_layout()
+plt.savefig(os.path.join(output_dir, 'metrics_comparison.png'))
+plt.show()
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(test_y.values, label='Actual', color='blue')
-    plt.plot(y_pred, label='Predicted', color='red')
-    plt.xlabel('Sample')
-    plt.ylabel('Allocated Bandwidth')
-    plt.title('Actual vs Predicted Allocated Bandwidth')
-    plt.legend()
-    plt.savefig(os.path.join(OUTPUT_DIR, "actual_vs_predicted.png"))  # Save the plot
-    plt.close()
+# Visualize the predicted vs actual values
+fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+axes = axes.ravel()
 
-    # Update dataframe with predicted Allocated_B
-    df['Allocated_B'] = best_model.predict(x)
+for i, (name, y_pred) in enumerate(predictions.items()):
+    ax = axes[i]
+    sns.scatterplot(x=y_test, y=y_pred, ax=ax)
+    ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
+    ax.set_title(f'{name} Predicted vs Actual')
+    ax.set_xlabel('Actual')
+    ax.set_ylabel('Predicted')
 
-    # Group by Application and calculate max values within each group
-    max_values = df.groupby('Application').agg({
-        'Latency': 'max',
-        'Allocated_B': 'max'
-    }).reset_index()
-    max_values.columns = ['Application', 'Latency_max', 'Allocated_B_max']
-
-    # Merge max values back to the original dataframe
-    df = df.merge(max_values, on='Application')
-
-    # Calculate Efficiency
-    df['Efficiency'] = 100 - (df['Latency'] / df['Latency_max']) * 100 + (df['Allocated_B'] / df['Allocated_B_max']) * 100
-
-    # Adjust Allocated_B to ensure Efficiency is within 85-115
-    # df['Allocated_B'] = df.apply(lambda row: row['Allocated_B'] * (100 / row['Efficiency']) if row['Efficiency'] < 85 or row['Efficiency'] > 115 else row['Allocated_B'], axis=1)
-
-    # Recalculate Efficiency after adjustment
-    df['Efficiency'] = 100 - (df['Latency'] / df['Latency_max']) * 100 + (df['Allocated_B'] / df['Allocated_B_max']) * 100
-
-    # Drop the temporary max columns
-    df.drop(['Latency_max', 'Allocated_B_max'], axis=1, inplace=True)
-
-    # Save the updated dataframe to a new CSV
-    OUTPUT_DATA_DIR = "../data"
-    os.makedirs(OUTPUT_DATA_DIR, exist_ok=True)
-
-    df.to_csv(os.path.join(OUTPUT_DATA_DIR, "optimized_dataset.csv"), index=False)
-
-    print("[INFO] Efficiency calculation completed and saved to 'optimized_dataset.csv'")
-
-if __name__ == "__main__":
-    # Read the dataset
-    df = pd.read_csv('../data/preprocessed_augmented_dataset.csv')  # Replace with your actual CSV file path
-    classify(df)
+plt.tight_layout()
+plt.savefig(os.path.join(output_dir, 'predicted_vs_actual.png'))
+plt.show()
