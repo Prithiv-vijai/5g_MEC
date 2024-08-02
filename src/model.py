@@ -14,11 +14,11 @@ output_dir = '../graphs/model_output'
 os.makedirs(output_dir, exist_ok=True)
 
 # Load the dataset from a CSV file
-df = pd.read_csv('../data/preprocessed_augmented_dataset.csv')
+df = pd.read_csv('../data/preprocessed_dataset.csv')
 
 # Define features (X) and target (y)
 X = df[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
-y = df['Efficiency']
+y = df['Resource_Allocation']
 
 # Split the dataset into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -64,23 +64,22 @@ fig, axes = plt.subplots(1, 4, figsize=(24, 5))
 
 sns.barplot(x='Model', y='MSE', data=metrics_df, ax=axes[0])
 axes[0].set_title('MSE Comparison')
-axes[0].set_xticklabels(axes[0].get_xticklabels(), rotation=45)
+axes[0].tick_params(axis='x', rotation=45)
 
 sns.barplot(x='Model', y='RMSE', data=metrics_df, ax=axes[1])
 axes[1].set_title('RMSE Comparison')
-axes[1].set_xticklabels(axes[1].get_xticklabels(), rotation=45)
+axes[1].tick_params(axis='x', rotation=45)
 
 sns.barplot(x='Model', y='MAE', data=metrics_df, ax=axes[2])
 axes[2].set_title('MAE Comparison')
-axes[2].set_xticklabels(axes[2].get_xticklabels(), rotation=45)
+axes[2].tick_params(axis='x', rotation=45)
 
 sns.barplot(x='Model', y='R2', data=metrics_df, ax=axes[3])
 axes[3].set_title('R2 Comparison')
-axes[3].set_xticklabels(axes[3].get_xticklabels(), rotation=45)
+axes[3].tick_params(axis='x', rotation=45)
 
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, 'metrics_comparison.png'))
-plt.show()
 
 # Visualize the predicted vs actual values
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
@@ -96,4 +95,3 @@ for i, (name, y_pred) in enumerate(predictions.items()):
 
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, 'predicted_vs_actual.png'))
-plt.show()
