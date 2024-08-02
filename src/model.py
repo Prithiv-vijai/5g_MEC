@@ -41,10 +41,11 @@ for name, model in models.items():
     y_pred = model.predict(X_test)
     
     mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
     
-    results[name] = {'MSE': mse, 'MAE': mae, 'R2': r2}
+    results[name] = {'MSE': mse, 'RMSE': rmse, 'MAE': mae, 'R2': r2}
     predictions[name] = y_pred
 
 # Print the comparison of the models
@@ -59,19 +60,23 @@ metrics_df = pd.DataFrame(results).T
 metrics_df.reset_index(inplace=True)
 metrics_df = metrics_df.rename(columns={'index': 'Model'})
 
-fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+fig, axes = plt.subplots(1, 4, figsize=(24, 5))
 
 sns.barplot(x='Model', y='MSE', data=metrics_df, ax=axes[0])
 axes[0].set_title('MSE Comparison')
 axes[0].set_xticklabels(axes[0].get_xticklabels(), rotation=45)
 
-sns.barplot(x='Model', y='MAE', data=metrics_df, ax=axes[1])
-axes[1].set_title('MAE Comparison')
+sns.barplot(x='Model', y='RMSE', data=metrics_df, ax=axes[1])
+axes[1].set_title('RMSE Comparison')
 axes[1].set_xticklabels(axes[1].get_xticklabels(), rotation=45)
 
-sns.barplot(x='Model', y='R2', data=metrics_df, ax=axes[2])
-axes[2].set_title('R2 Comparison')
+sns.barplot(x='Model', y='MAE', data=metrics_df, ax=axes[2])
+axes[2].set_title('MAE Comparison')
 axes[2].set_xticklabels(axes[2].get_xticklabels(), rotation=45)
+
+sns.barplot(x='Model', y='R2', data=metrics_df, ax=axes[3])
+axes[3].set_title('R2 Comparison')
+axes[3].set_xticklabels(axes[3].get_xticklabels(), rotation=45)
 
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, 'metrics_comparison.png'))
