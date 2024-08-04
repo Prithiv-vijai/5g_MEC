@@ -15,11 +15,11 @@ from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
 
 # Create the directory if it doesn't exist
-output_dir = '../graphs/model_output'
+output_dir = '../graphs/model_output/'
 os.makedirs(output_dir, exist_ok=True)
 
 # Load the dataset from a CSV file
-df = pd.read_csv('../data/preprocessed_dataset.csv')
+df = pd.read_csv('../data/augmented_dataset.csv')
 
 # Define features (X) and target (y)
 X = df[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
@@ -36,7 +36,6 @@ models = {
     'Decision Tree': DecisionTreeRegressor(random_state=42),
     'Random Forest': RandomForestRegressor(random_state=42),
     'Gradient Boosting': GradientBoostingRegressor(random_state=42),
-    'KNN': KNeighborsRegressor(),
     'SVM': SVR(),
     'Polynomial Regression': make_pipeline(PolynomialFeatures(degree=2), LinearRegression())
 }
@@ -97,7 +96,7 @@ for i, metric in enumerate(metrics_to_plot):
     sns.barplot(x='Model', y=metric, data=metrics_df, ax=axes[i])
     axes[i].set_title(f'{metric} Comparison')
     axes[i].tick_params(axis='x', rotation=45)
-    axes[i].set_ylim(0, metrics_df[metric].max() * 1.1) if metric != 'R2' and metric != 'Adjusted R2' else axes[i].set_ylim(metrics_df[metric].min() * 1.1, 1)
+    axes[i].set_ylim(0, metrics_df[metric].max() * 1.1) if metric != 'R2' and metric != 'Adjusted R2' else axes[i].set_ylim(metrics_df[metric].min() * 1.1, 1.5)
     add_rank_labels(axes[i], metrics_df, metric)
 
 # Hide any unused subplots
@@ -105,14 +104,14 @@ for j in range(num_metrics, len(axes)):
     fig.delaxes(axes[j])
 
 plt.tight_layout()
-plt.savefig(os.path.join(output_dir, 'metrics_comparison.png'))
+plt.savefig(os.path.join(output_dir, 'metrics_comparison(augmented).png'))
 
 # Visualize the predicted vs actual values
 num_models = len(models)
 num_cols = min(num_models, 3)  # Limit to a maximum of 3 columns for better layout
 num_rows = (num_models + num_cols - 1) // num_cols  # Calculate rows needed
 
-fig, axes = plt.subplots(num_rows, num_cols, figsize=(24, num_rows * 5))
+fig, axes = plt.subplots(num_rows, num_cols, figsize=(24, num_rows * 6))
 axes = axes.ravel()
 
 for i, (name, y_pred) in enumerate(predictions.items()):
@@ -128,7 +127,7 @@ for j in range(num_models, len(axes)):
     fig.delaxes(axes[j])
 
 plt.tight_layout()
-plt.savefig(os.path.join(output_dir, 'predicted_vs_actual.png'))
+plt.savefig(os.path.join(output_dir, 'predicted_vs_actual(augmented).png'))
 
 # Find and print the best values for each metric
 best_models = {metric: min(results.items(), key=lambda x: x[1][metric]) for metric in ['MSE', 'RMSE', 'MAE', 'MAPE']}
