@@ -93,4 +93,14 @@ plt.tight_layout()
 plt.savefig(os.path.join(graphs_dir, 'application_type_frequency.png'))
 plt.close()
 
+# Visualize the average Signal_Strength for each application type
+plot_side_by_side(original_df, augmented_df, 'Application_Type', 'Signal_Strength',
+                  'Average Signal Strength for Each Application Type', 'Application Type',
+                  'Average Signal Strength', 'average_signal_strength.png')
+
+# Visualize the average Allocated_Bandwidth for each application type
+plot_side_by_side(original_df, augmented_df, 'Application_Type', 'Allocated_Bandwidth',
+                  'Average Allocated Bandwidth for Each Application Type', 'Application Type',
+                  'Average Allocated Bandwidth', 'average_allocated_bandwidth.png')
+
 print(f"All graphs have been saved to the '{graphs_dir}' directory.")
