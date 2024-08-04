@@ -5,6 +5,7 @@ import os
 
 # Load the dataset (assuming it's named 'preprocessed_augmented_dataset.csv')
 df = pd.read_csv('../data/preprocessed_dataset.csv')
+df = df.drop(columns=['User_ID'])
 
 # Create a directory to store the graphs if it doesn't exist
 graphs_dir = '../graphs/visualization'
