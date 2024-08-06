@@ -32,7 +32,7 @@ def random_sampling_with_noise(data, target_size):
         augmented_data = pd.concat([augmented_data, sampled_data], ignore_index=True)
     
     # Add noise only to numerical features except Application_Type
-    noise = np.random.normal(0, 0.01, augmented_data[numerical_features].shape)
+    noise = np.random.normal(1, 1, augmented_data[numerical_features].shape)
     augmented_data[numerical_features] += noise
     
     # Reset User_ID column with new unique values

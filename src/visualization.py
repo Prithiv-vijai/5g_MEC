@@ -39,6 +39,30 @@ def plot_side_by_side(data1, data2, x, y, title, xlabel, ylabel, filename, estim
     plt.savefig(os.path.join(graphs_dir, filename))
     plt.close()
 
+# Function to plot the number of rows per application type
+def plot_row_count_comparison(data1, data2, filename):
+    plt.figure(figsize=(18, 8))
+
+    # Plot for the original dataset
+    plt.subplot(1, 2, 1)
+    sns.countplot(data=data1, x='Application_Type')
+    plt.title('Original Dataset: Number of Rows per Application Type')
+    plt.xlabel('Application Type')
+    plt.ylabel('Number of Rows')
+    plt.xticks(rotation=45)
+
+    # Plot for the augmented dataset
+    plt.subplot(1, 2, 2)
+    sns.countplot(data=data2, x='Application_Type')
+    plt.title('Augmented Dataset: Number of Rows per Application Type')
+    plt.xlabel('Application Type')
+    plt.ylabel('Number of Rows')
+    plt.xticks(rotation=45)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(graphs_dir, filename))
+    plt.close()
+
 # Visualize the average allocated bandwidth for each application type
 plot_side_by_side(original_df, augmented_df, 'Application_Type', 'Allocated_Bandwidth',
                   'Average Allocated Bandwidth for Each Application Type', 'Application Type',
@@ -102,5 +126,8 @@ plot_side_by_side(original_df, augmented_df, 'Application_Type', 'Signal_Strengt
 plot_side_by_side(original_df, augmented_df, 'Application_Type', 'Allocated_Bandwidth',
                   'Average Allocated Bandwidth for Each Application Type', 'Application Type',
                   'Average Allocated Bandwidth', 'average_allocated_bandwidth.png')
+
+# Visualize the number of rows per application type
+plot_row_count_comparison(original_df, augmented_df, 'application_type_frequency.png')
 
 print(f"All graphs have been saved to the '{graphs_dir}' directory.")

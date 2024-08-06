@@ -19,7 +19,7 @@ output_dir = '../graphs/model_output/'
 os.makedirs(output_dir, exist_ok=True)
 
 # Load the dataset from a CSV file
-df = pd.read_csv('../data/augmented_dataset.csv')
+df = pd.read_csv('../data/preprocessed_dataset.csv')
 
 # Define features (X) and target (y)
 X = df[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
@@ -104,11 +104,11 @@ for j in range(num_metrics, len(axes)):
     fig.delaxes(axes[j])
 
 plt.tight_layout()
-plt.savefig(os.path.join(output_dir, 'metrics_comparison(augmented).png'))
+plt.savefig(os.path.join(output_dir, 'metrics_comparison(preprocessed).png'))
 
 # Visualize the predicted vs actual values
 num_models = len(models)
-num_cols = min(num_models, 3)  # Limit to a maximum of 3 columns for better layout
+num_cols = min(num_models, 4)  # Limit to a maximum of 3 columns for better layout
 num_rows = (num_models + num_cols - 1) // num_cols  # Calculate rows needed
 
 fig, axes = plt.subplots(num_rows, num_cols, figsize=(24, num_rows * 6))
@@ -127,7 +127,7 @@ for j in range(num_models, len(axes)):
     fig.delaxes(axes[j])
 
 plt.tight_layout()
-plt.savefig(os.path.join(output_dir, 'predicted_vs_actual(augmented).png'))
+plt.savefig(os.path.join(output_dir, 'predicted_vs_actual(preprocessed).png'))
 
 # Find and print the best values for each metric
 best_models = {metric: min(results.items(), key=lambda x: x[1][metric]) for metric in ['MSE', 'RMSE', 'MAE', 'MAPE']}
