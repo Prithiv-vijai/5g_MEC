@@ -3,6 +3,7 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # Load the dataset from a CSV file
 data = pd.read_csv('../data/augmented_dataset.csv')
@@ -86,10 +87,25 @@ r2 = best_model.score(X_test, y_test)
 adjusted_r2 = 1 - (1-r2) * (len(y_test)-1)/(len(y_test)-X_test.shape[1]-1)
 mape = mean_absolute_percentage_error(y_test, y_pred)
 
-# Print metrics
-print("Best Parameters from SMA:", best_solution)
-print("MSE:", mse)
-print("RMSE:", rmse)
-print("R2:", r2)
-print("Adjusted R2:", adjusted_r2)
-print("MAPE:", mape)
+# Create an image with the metrics
+plt.figure(figsize=(10, 6))
+plt.text(0.5, 0.9, f"Best Parameters from SMA:", ha='center', va='center', fontsize=14, weight='bold')
+plt.text(0.5, 0.8, f"Learning Rate: {best_solution[0]:.4f}", ha='center', va='center', fontsize=12)
+plt.text(0.5, 0.7, f"Max Iterations: {int(best_solution[1])}", ha='center', va='center', fontsize=12)
+plt.text(0.5, 0.6, f"Max Leaf Nodes: {int(best_solution[2])}", ha='center', va='center', fontsize=12)
+plt.text(0.5, 0.5, f"Max Depth: {int(best_solution[3]) if not np.isnan(best_solution[3]) else 'None'}", ha='center', va='center', fontsize=12)
+plt.text(0.5, 0.4, f"Min Samples Leaf: {int(best_solution[4])}", ha='center', va='center', fontsize=12)
+plt.text(0.5, 0.3, f"L2 Regularization: {best_solution[5]:.4f}", ha='center', va='center', fontsize=12)
+
+plt.text(0.5, 0.1, f"MSE: {mse:.4f}", ha='center', va='center', fontsize=12)
+plt.text(0.5, 0.0, f"RMSE: {rmse:.4f}", ha='center', va='center', fontsize=12)
+plt.text(0.5, -0.1, f"R2: {r2:.4f}", ha='center', va='center', fontsize=12)
+plt.text(0.5, -0.2, f"Adjusted R2: {adjusted_r2:.4f}", ha='center', va='center', fontsize=12)
+plt.text(0.5, -0.3, f"MAPE: {mape:.4f}", ha='center', va='center', fontsize=12)
+
+plt.axis('off')
+plt.tight_layout()
+plt.savefig('../graphs/model_output/extras/sma_model_metrics_image.png')
+plt.show()
+
+print("Metrics image saved to '../results/model_metrics_image.png'.")

@@ -7,7 +7,7 @@ import os
 original_df = pd.read_csv('../data/preprocessed_dataset.csv')
 augmented_df = pd.read_csv('../data/augmented_dataset.csv')
 
-# Drop User_ID column for the analysis
+# # Drop User_ID column for the analysis
 original_df = original_df.drop(columns=['User_ID'])
 augmented_df = augmented_df.drop(columns=['User_ID'])
 
