@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error
@@ -7,7 +8,7 @@ from skopt import BayesSearchCV
 from skopt.space import Real, Integer
 
 # Load the dataset from a CSV file
-data = pd.read_csv('../data/augmented_dataset.csv')
+data = pd.read_csv('../data/augmented_datasett.csv')
 
 # Define features and target
 X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
@@ -51,15 +52,15 @@ random_search.fit(X_train, y_train)
 bayes_search = BayesSearchCV(model, search_space, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
 bayes_search.fit(X_train, y_train)
 
-# Get the best models
-best_grid_model = grid_search.best_estimator_
-best_random_model = random_search.best_estimator_
-best_bayes_model = bayes_search.best_estimator_
+# Fit the default model without any parameter optimization
+default_model = HistGradientBoostingRegressor()
+default_model.fit(X_train, y_train)
 
 # Make predictions
-y_pred_grid = best_grid_model.predict(X_test)
-y_pred_random = best_random_model.predict(X_test)
-y_pred_bayes = best_bayes_model.predict(X_test)
+y_pred_default = default_model.predict(X_test)
+y_pred_grid = grid_search.best_estimator_.predict(X_test)
+y_pred_random = random_search.best_estimator_.predict(X_test)
+y_pred_bayes = bayes_search.best_estimator_.predict(X_test)
 
 # Calculate metrics
 def calculate_metrics(y_test, y_pred):
@@ -70,16 +71,52 @@ def calculate_metrics(y_test, y_pred):
     mape = mean_absolute_percentage_error(y_test, y_pred)
     return mse, rmse, r2, adjusted_r2, mape
 
+metrics_default = calculate_metrics(y_test, y_pred_default)
 metrics_grid = calculate_metrics(y_test, y_pred_grid)
 metrics_random = calculate_metrics(y_test, y_pred_random)
 metrics_bayes = calculate_metrics(y_test, y_pred_bayes)
 
-# Print metrics
-print("Grid Search Best Parameters:", grid_search.best_params_)
-print("Grid Search Metrics - MSE:", metrics_grid[0], "RMSE:", metrics_grid[1], "R2:", metrics_grid[2], "Adjusted R2:", metrics_grid[3], "MAPE:", metrics_grid[4])
+# Store all metrics in a dictionary for comparison
+metrics = {
+    "Default": metrics_default,
+    "Grid Search": metrics_grid,
+    "Random Search": metrics_random,
+    "Bayesian Optimization": metrics_bayes
+}
 
-print("Random Search Best Parameters:", random_search.best_params_)
-print("Random Search Metrics - MSE:", metrics_random[0], "RMSE:", metrics_random[1], "R2:", metrics_random[2], "Adjusted R2:", metrics_random[3], "MAPE:", metrics_random[4])
+# Extract the metrics for plotting
+metric_names = ['MSE', 'RMSE', 'R²', 'Adjusted R²', 'MAPE']
+metric_values = np.array([metrics_default, metrics_grid, metrics_random, metrics_bayes])
+model_names = ['Default', 'Grid Search', 'Random Search', 'Bayesian Optimization']
 
-print("Bayesian Optimization Best Parameters:", bayes_search.best_params_)
-print("Bayesian Optimization Metrics - MSE:", metrics_bayes[0], "RMSE:", metrics_bayes[1], "R2:", metrics_bayes[2], "Adjusted R2:", metrics_bayes[3], "MAPE:", metrics_bayes[4])
+# Plot the metrics
+fig, axs = plt.subplots(3, 2, figsize=(15, 12))
+axs = axs.ravel()
+
+best_values = []
+
+for i, metric_name in enumerate(metric_names):
+    values = metric_values[:, i]
+    rank = np.argsort(values) if i < 2 else np.argsort(-values)
+    best_value = values[rank[0]]
+    best_model = model_names[rank[0]]
+    best_values.append((best_model, best_value))
+    
+    axs[i].bar(model_names, values, color=['blue', 'orange', 'green', 'red'])
+    axs[i].set_title(f'{metric_name} Comparison')
+    axs[i].set_ylabel(metric_name)
+    axs[i].text(rank[0], best_value, f'Best: {best_model}\nValue: {best_value:.4f}', ha='center', va='bottom', color='black', fontsize=10, weight='bold')
+
+# Hide the last empty subplot
+axs[-1].axis('off')
+
+# Save the plot as a PNG file
+plt.tight_layout()
+plt.savefig('../graphs/model_output/hgbrt.png')
+
+# Display the plot
+plt.show()
+
+# Print the best values for each metric
+for metric_name, (best_model, best_value) in zip(metric_names, best_values):
+    print(f"Best {metric_name}: {best_model} with a value of {best_value:.4f}")
