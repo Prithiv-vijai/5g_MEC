@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, BayesianRidge
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, AdaBoostRegressor
@@ -56,6 +56,7 @@ model_groups = {
         'AdaBoost': AdaBoostRegressor(random_state=42),
         'XGBoost': xgb.XGBRegressor(random_state=42),
         'LightGBM': lgb.LGBMRegressor(random_state=42),
+        'CatBoost': CatBoostRegressor(verbose=0)
     }
 }
 
@@ -63,12 +64,44 @@ model_groups = {
 results = {}
 predictions = {}
 
-# Train and evaluate each model
+# Hyperparameter grids for Grid Search
+param_grids = {
+    'Regression Models': {
+        'Linear Regression': {},
+        'Ridge Regression': {'alpha': [0.1, 1, 10]},
+        'Lasso Regression': {'alpha': [0.01, 0.1, 1, 10]},
+        'Elastic Net': {'alpha': [0.1, 1, 10], 'l1_ratio': [0.1, 0.5, 0.9]},
+        'Bayesian Ridge': {'alpha_1': [1e-6, 1e-3, 1e-1], 'alpha_2': [1e-6, 1e-3, 1e-1], 'lambda_1': [1e-6, 1e-3, 1e-1], 'lambda_2': [1e-6, 1e-3, 1e-1]},
+        'Polynomial Regression': {},
+        'SVR': {'C': [0.1, 1, 10], 'epsilon': [0.01, 0.1, 0.5], 'kernel': ['linear', 'poly', 'rbf'], 'gamma': ['scale', 'auto', 0.01, 0.1]},
+        'MLP Regressor': {'hidden_layer_sizes': [(50,), (100,), (50, 50)], 'activation': ['relu', 'tanh', 'logistic'], 'solver': ['adam', 'sgd', 'lbfgs'], 'alpha': [0.0001, 0.001]}
+    },
+    'Tree-Based Models': {
+        'Decision Tree': {'max_depth': [None, 10, 20], 'min_samples_split': [2, 5, 10], 'min_samples_leaf': [1, 2, 5]},
+        'Random Forest': {'n_estimators': [100, 200, 500], 'max_depth': [None, 10, 20], 'min_samples_split': [2, 5, 10], 'min_samples_leaf': [1, 2, 5], 'max_features': ['sqrt', 'log2', None]},
+    },
+    'Boosting Models': {
+        'Gradient Boosting': {'n_estimators': [100, 200, 300], 'learning_rate': [0.01, 0.1, 0.2], 'max_depth': [3, 5, 7]},
+        'AdaBoost': {'n_estimators': [50, 100, 200], 'learning_rate': [0.01, 0.1, 1]},
+        'XGBoost': {'n_estimators': [100, 200, 300], 'learning_rate': [0.01, 0.1, 0.2], 'max_depth': [3, 5, 7], 'subsample': [0.8, 0.9, 1.0], 'colsample_bytree': [0.8, 0.9, 1.0]},
+        'LightGBM': {'n_estimators': [100, 200, 300], 'learning_rate': [0.01, 0.1, 0.2], 'max_depth': [3, 5, 7], 'num_leaves': [31, 63, 127]},
+        'CatBoost': {'iterations': [100, 200, 300], 'learning_rate': [0.01, 0.1, 0.2], 'depth': [6, 8, 10]}
+    }
+}
+
+# Perform Grid Search for each model
 for group_name, models in model_groups.items():
     for name, model in models.items():
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-
+        if name in param_grids[group_name]:
+            grid_search = GridSearchCV(model, param_grids[group_name][name], cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
+            grid_search.fit(X_train, y_train)
+            best_model = grid_search.best_estimator_
+        else:
+            best_model = model
+            best_model.fit(X_train, y_train)
+        
+        y_pred = best_model.predict(X_test)
+        
         mse = mean_squared_error(y_test, y_pred)
         rmse = np.sqrt(mse)
         mae = mean_absolute_error(y_test, y_pred)
@@ -101,107 +134,40 @@ for group_name, models in model_groups.items():
 
     num_metrics = len(metrics_to_plot)
     num_cols = 3
-    num_rows = (num_metrics + num_cols - 1) // num_cols  # Ensure enough rows for all metrics
+    num_rows = (num_metrics + num_cols - 1) // num_cols  # Calculate number of rows required
 
-    fig, axes = plt.subplots(num_rows, num_cols, figsize=(24, num_rows * 5))
-    axes = axes.ravel()  # Flatten the 2D array of axes for easy iteration
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=(15, num_rows * 5), tight_layout=True)
+    if num_rows == 1:
+        axes = [axes]
 
-    for i, metric in enumerate(metrics_to_plot):
-        sns.barplot(x='Model', y=metric, data=group_metrics_df, ax=axes[i])
-        axes[i].set_title(f'{metric} Comparison ({group_name})')
-        axes[i].tick_params(axis='x', rotation=45)
-        if metric in ['R2', 'Adjusted R2']:
-            axes[i].set_ylim(0, 1.5)
-        else:
-            axes[i].set_ylim(0, group_metrics_df[metric].max() * 1.1)
-        add_rank_labels(axes[i], group_metrics_df, metric)
+    for idx, metric in enumerate(metrics_to_plot):
+        row = idx // num_cols
+        col = idx % num_cols
+        ax = axes[row][col]
 
-    # Hide any unused subplots
-    for j in range(num_metrics, len(axes)):
-        fig.delaxes(axes[j])
+        # Sorting models by the current metric
+        sorted_group_df = group_metrics_df.sort_values(by=metric, ascending=metric not in ['R2', 'Adjusted R2'])
+        sns.barplot(data=sorted_group_df, x='Model', y=metric, ax=ax, palette='viridis')
+        ax.set_title(f'{group_name} - {metric}')
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
 
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f'{group_name.lower().replace(" ", "_")}_metrics_comparison(augmented).png'))
+        # Add rank labels
+        add_rank_labels(ax, sorted_group_df, metric)
 
-# Visualize the predicted vs actual values
-for group_name, models in model_groups.items():
-    group_predictions = {name: predictions[(group_name, name)] for name in models.keys()}
+    # Remove any empty subplots
+    for i in range(num_metrics, num_rows * num_cols):
+        fig.delaxes(axes[i // num_cols][i % num_cols])
 
-    num_models = len(models)
-    num_cols = min(num_models, 4)  # Limit to a maximum of 4 columns for better layout
-    num_rows = (num_models + num_cols - 1) // num_cols  # Calculate rows needed
+    plt.savefig(f'{output_dir}{group_name}_metrics_comparison.png')
+    plt.close()
 
-    fig, axes = plt.subplots(num_rows, num_cols, figsize=(24, num_rows * 6))
-    axes = axes.ravel()
+# Print results
+for (group_name, name), metrics in results.items():
+    print(f"{group_name} - {name}:")
+    for metric, value in metrics.items():
+        print(f"  {metric}: {value:.4f}")
+    print()
 
-    for i, (name, y_pred) in enumerate(group_predictions.items()):
-        ax = axes[i]
-        sns.scatterplot(x=y_test, y=y_pred, ax=ax)
-        ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
-        ax.set_title(f'{name} Predicted vs Actual ({group_name})')
-        ax.set_xlabel('Actual')
-        ax.set_ylabel('Predicted')
-
-    # Hide any unused subplots
-    for j in range(num_models, len(axes)):
-        fig.delaxes(axes[j])
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f'{group_name.lower().replace(" ", "_")}_predicted_vs_actual(augmented).png'))
-
-# Find and print the best values for each metric
-best_models = {metric: min(results.items(), key=lambda x: x[1][metric]) for metric in ['MSE', 'RMSE', 'MAE', 'MAPE']}
-best_models['R2'] = max(results.items(), key=lambda x: x[1]['R2'])
-best_models['Adjusted R2'] = max(results.items(), key=lambda x: x[1]['Adjusted R2'])
-
-print("\nBest Models for Each Metric:")
-for metric, ((group_name, model_name), metrics) in best_models.items():
-    print(f"\nBest Model for {metric}: {model_name} ({group_name})")
-    print(f"  {metric}: {metrics[metric]:.4f}")
-
-# Create a DataFrame for top-ranked models from each category
-top_models = {}
-for group_name, models in model_groups.items():
-    if group_name == 'Boosting Models':
-        # Special handling for Boosting Models to select the model with the best R2 score
-        best_model = max(models.keys(), key=lambda name: results[(group_name, name)]['R2'])
-    else:
-        # Default handling for other categories
-        best_model = min(models.keys(), key=lambda name: results[(group_name, name)]['MAE'])
-    
-    top_models[group_name] = best_model
-
-# Generate a DataFrame for top-ranked models
-top_models_df = []
-for group_name, model_name in top_models.items():
-    metrics = results[(group_name, model_name)]
-    top_models_df.append({
-        'Model': model_name,
-        'Group': group_name,
-        'MSE': metrics['MSE'],
-        'RMSE': metrics['RMSE'],
-        'MAE': metrics['MAE'],
-        'R2': metrics['R2'],
-        'MAPE': metrics['MAPE'],
-        'Adjusted R2': metrics['Adjusted R2'],
-        'Rank': 1  # All top models are ranked #1
-    })
-
-top_models_df = pd.DataFrame(top_models_df)
-
-# Plot top-ranked models
-fig, axes = plt.subplots(2, 3, figsize=(24, 10))
-axes = axes.ravel()
-
-for i, metric in enumerate(metrics_to_plot):
-    sns.barplot(x='Model', y=metric, data=top_models_df, ax=axes[i], hue='Group', palette='Set1')
-    axes[i].set_title(f'Top-Ranked Models - {metric}')
-    axes[i].tick_params(axis='x', rotation=45)
-    if metric in ['R2', 'Adjusted R2']:
-        axes[i].set_ylim(0, 1.5)
-    else:
-        axes[i].set_ylim(0, top_models_df[metric].max() * 1.1)
-    add_rank_labels(axes[i], top_models_df, metric)
-
-plt.tight_layout()
-plt.savefig(os.path.join(output_dir, 'top_ranked_models_comparison(augmented).png'))
+# Save the results to a CSV file
+results_df = pd.DataFrame(results).T
+results_df.to_csv('../graphs/model_output/optimized_results.csv', index=True)
