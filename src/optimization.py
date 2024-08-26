@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error, mean_absolute_error
 from skopt import BayesSearchCV
 from skopt.space import Real, Integer
+import os 
 
 # Load the dataset from a CSV file
 data = pd.read_csv('../data/augmented_dataset.csv')
@@ -17,42 +18,7 @@ y = data['Resource_Allocation']
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Expanded parameter grid for RandomizedSearchCV
-param_grid= {
-    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2, 0.3, 0.5],
-    'max_iter': [100, 200, 300, 400, 500],
-    'max_leaf_nodes': [20, 31, 50, 70, 100],
-    'max_depth': [None, 5, 10, 15, 20, 25],
-    'min_samples_leaf': [10, 20, 30, 40, 50],
-    'l2_regularization': [0, 0.01, 0.1, 0.2, 0.5, 1, 2]
-}
-
-# Expanded search space for BayesSearchCV
-search_space = {
-    'learning_rate': Real(0.001, 0.5, prior='uniform'),
-    'max_iter': Integer(100, 500),
-    'max_leaf_nodes': Integer(20, 100),
-    'max_depth': Integer(5, 25) or None,
-    'min_samples_leaf': Integer(10, 50),
-    'l2_regularization': Real(0, 2, prior='uniform')
-}
-
-# Initialize the model
-model = HistGradientBoostingRegressor()
-
-# Random Search
-random_search = RandomizedSearchCV(model, param_distributions=param_grid, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
-random_search.fit(X_train, y_train)
-
-# Bayesian Optimization
-bayes_search = BayesSearchCV(model, search_space, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
-bayes_search.fit(X_train, y_train)
-
-# Make predictions
-y_pred_random = random_search.best_estimator_.predict(X_test)
-y_pred_bayes = bayes_search.best_estimator_.predict(X_test)
-
-# Calculate metrics
+# Function to calculate metrics
 def calculate_metrics(y_test, y_pred):
     mse = mean_squared_error(y_test, y_pred)
     rmse = np.sqrt(mse)
@@ -62,49 +28,84 @@ def calculate_metrics(y_test, y_pred):
     mae = mean_absolute_error(y_test, y_pred)
     return mse, rmse, r2, adjusted_r2, mape, mae
 
-metrics_random = calculate_metrics(y_test, y_pred_random)
-metrics_bayes = calculate_metrics(y_test, y_pred_bayes)
-
-# Store all metrics in a dictionary for comparison
-metrics = {
-    "Random Search": metrics_random,
-    "Bayesian Optimization": metrics_bayes
+# Function to append metrics to CSV
+def append_metrics_to_csv(model_name, metrics, model_category='Boosting Models'):
+    # Define the order of columns as per your requirement
+    column_order = ['Model Name', 'Model Category', 'MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Adjusted R2']
+    
+    # Create a dictionary with correct keys and values
+    metrics_dict = {
+        'Model Name': [model_name],
+        'Model Category': [model_category],
+        'MSE': [metrics[0]],
+        'RMSE': [metrics[1]],
+        'MAE': [metrics[2]],
+        'R2': [metrics[3]],
+        'MAPE': [metrics[4]],
+        'Adjusted R2': [metrics[5]]
+    }
+    
+    # Convert dictionary to DataFrame
+    df_metrics = pd.DataFrame(metrics_dict)
+    
+    # Append DataFrame to CSV
+    file_path = '../data/model_performance_metrics.csv'
+    if not os.path.isfile(file_path):
+        df_metrics.to_csv(file_path, mode='w', header=True, index=False, columns=column_order)
+    else:
+        df_metrics.to_csv(file_path, mode='a', header=False, index=False, columns=column_order)
+        
+# Bayesian Optimization
+search_space = {
+    'learning_rate': Real(0.001, 0.5, prior='uniform'),
+    'max_iter': Integer(100, 500),
+    'max_leaf_nodes': Integer(20, 100),
+    'max_depth': Integer(5, 25) or None,
+    'min_samples_leaf': Integer(10, 50),
+    'l2_regularization': Real(0, 2, prior='uniform')
 }
 
-# Extract the metrics for plotting
-metric_names = ['MSE', 'RMSE', 'R²', 'Adjusted R²', 'MAPE', 'MAE']
-metric_values = np.array([metrics_random, metrics_bayes])
-model_names = ['Random Search', 'Bayesian Optimization']
+model = HistGradientBoostingRegressor()
+bayes_search = BayesSearchCV(model, search_space, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
+bayes_search.fit(X_train, y_train)
 
-# Plot the metrics
-fig, axs = plt.subplots(3, 2, figsize=(15, 12))
-axs = axs.ravel()
+y_pred_bayes = bayes_search.best_estimator_.predict(X_test)
+metrics_bayes = calculate_metrics(y_test, y_pred_bayes)
+append_metrics_to_csv('hgbrt_bayesian', metrics_bayes)
 
-for i, metric_name in enumerate(metric_names):
-    values = metric_values[:, i]
-    # Plot the bars
-    bars = axs[i].bar(model_names, values, color=['green', 'red'])
-    axs[i].set_title(f'{metric_name} Comparison')
-    axs[i].set_ylabel(metric_name)
-    
-    # Display values on top of each bar
-    for bar in bars:
-        yval = bar.get_height()
-        axs[i].text(bar.get_x() + bar.get_width()/2, yval, f'{yval:.4f}', ha='center', va='bottom', fontsize=10, weight='bold')
+# Grid Search
+param_grid = {
+    'learning_rate': [0.01, 0.1, 0.2],
+    'max_iter': [100, 200],
+    'max_leaf_nodes': [20, 31],
+    'max_depth': [None, 10, 20],
+    'min_samples_leaf': [20, 30],
+    'l2_regularization': [0, 0.1, 0.5]
+}
 
-# Adjust layout for better spacing
-plt.tight_layout()
+grid_search = GridSearchCV(model, param_grid=param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
+grid_search.fit(X_train, y_train)
 
-# Save the plot as a PNG file
-plt.savefig('../graphs/model_output/hgbrt_with_optimization.png')
+y_pred_grid = grid_search.best_estimator_.predict(X_test)
+metrics_grid = calculate_metrics(y_test, y_pred_grid)
+append_metrics_to_csv('hgbrt_grid', metrics_grid)
 
-# Display the plot
-plt.show()
+# Random Search
+param_grid_random = {
+    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2, 0.3, 0.5],
+    'max_iter': [100, 200, 300, 400, 500],
+    'max_leaf_nodes': [20, 31, 50, 70, 100],
+    'max_depth': [None, 5, 10, 15, 20, 25],
+    'min_samples_leaf': [10, 20, 30, 40, 50],
+    'l2_regularization': [0, 0.01, 0.1, 0.2, 0.5, 1, 2]
+}
 
-# Print the best-performing models for each metric
-for metric_name in metric_names:
-    values = metric_values[:, metric_names.index(metric_name)]
-    best_model_index = np.argmin(values) if metric_name in ['MSE', 'RMSE', 'MAE'] else np.argmax(values)
-    best_model = model_names[best_model_index]
-    best_value = values[best_model_index]
-    print(f"Best model for {metric_name}: {best_model} with a value of {best_value:.4f}")
+random_search = RandomizedSearchCV(model, param_distributions=param_grid_random, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
+random_search.fit(X_train, y_train)
+
+y_pred_random = random_search.best_estimator_.predict(X_test)
+metrics_random = calculate_metrics(y_test, y_pred_random)
+append_metrics_to_csv('hgbrt_random', metrics_random)
+
+
+
