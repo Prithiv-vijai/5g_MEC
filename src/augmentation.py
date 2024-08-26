@@ -42,19 +42,14 @@ def random_sampling_with_noise(data, target_size):
     return augmented_data
 
 # Augment data using random sampling with noise
-target_size = 35000
+target_size = 16000
 augmented_random = random_sampling_with_noise(df, target_size)
 
 # Append the existing data to the augmented data
 combined_data = pd.concat([df, augmented_random], ignore_index=True)
 
 # Filter out rows based on the specified conditions
-filtered_data = combined_data[
-    (combined_data['Resource_Allocation'] <= 100) & 
-    (combined_data['Required_Bandwidth'] >= 0) & 
-    (combined_data['Allocated_Bandwidth'] >= 0) &
-    (combined_data['Allocated_Bandwidth'] >= combined_data['Required_Bandwidth'])
-]
+filtered_data = combined_data
 
 # Equalize the number of rows for each application type after filtering
 final_data = pd.DataFrame()

@@ -19,14 +19,14 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, m
 # Additional libraries for the new models
 import xgboost as xgb
 import lightgbm as lgb
-from catboost import CatBoostRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor
 
 # Create the directory if it doesn't exist
 output_dir = '../graphs/model_output/'
 os.makedirs(output_dir, exist_ok=True)
 
 # Load the dataset from a CSV file
-df = pd.read_csv('../data/augmented_datasett.csv')
+df = pd.read_csv('../data/augmented_dataset.csv')
 
 # Define features (X) and target (y)
 X = df[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
@@ -56,6 +56,7 @@ model_groups = {
         'AdaBoost': AdaBoostRegressor(random_state=42),
         'XGBoost': xgb.XGBRegressor(random_state=42),
         'LightGBM': lgb.LGBMRegressor(random_state=42),
+        'Hgbrt': HistGradientBoostingRegressor(random_state=42)
     }
 }
 
@@ -76,8 +77,23 @@ for group_name, models in model_groups.items():
         mape = mean_absolute_percentage_error(y_test, y_pred)
         adj_r2 = 1 - (1-r2) * (len(y_test)-1) / (len(y_test) - X_test.shape[1] - 1)
 
-        results[(group_name, name)] = {'MSE': mse, 'RMSE': rmse, 'MAE': mae, 'R2': r2, 'MAPE': mape, 'Adjusted R2': adj_r2}
+        results[(group_name, name)] = {'Model Name': name,
+                                       'Model Category': group_name,
+                                       'MSE': mse,
+                                       'RMSE': rmse,
+                                       'MAE': mae,
+                                       'R2': r2,
+                                       'MAPE': mape,
+                                       'Adjusted R2': adj_r2}
         predictions[(group_name, name)] = y_pred
+
+# Convert results to a DataFrame
+results_df = pd.DataFrame(results).T.reset_index(drop=True)
+
+# Save the results DataFrame to a CSV file
+results_df.to_csv('../data/model_performance_metrics(augmented).csv', index=False)
+
+# Rest of your plotting and analysis code...
 
 # Define metrics to plot
 metrics_to_plot = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Adjusted R2']
