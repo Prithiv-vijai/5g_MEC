@@ -26,7 +26,7 @@ output_dir = '../graphs/model_output/'
 os.makedirs(output_dir, exist_ok=True)
 
 # Load the dataset from a CSV file
-df = pd.read_csv('../data/augmented_dataset.csv')
+df = pd.read_csv('../data/augmented_datasett.csv')
 
 # Define features (X) and target (y)
 X = df[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
@@ -55,7 +55,6 @@ model_groups = {
         'Gradient Boosting': GradientBoostingRegressor(random_state=42),
         'AdaBoost': AdaBoostRegressor(random_state=42),
         'XGBoost': xgb.XGBRegressor(random_state=42),
-        'LightGBM': lgb.LGBMRegressor(random_state=42),
         'Hgbrt': HistGradientBoostingRegressor(random_state=42)
     }
 }
@@ -91,7 +90,7 @@ for group_name, models in model_groups.items():
 results_df = pd.DataFrame(results).T.reset_index(drop=True)
 
 # Save the results DataFrame to a CSV file
-results_df.to_csv('../data/model_performance_metrics(augmented).csv', index=False)
+results_df.to_csv('../data/model_performance_metrics.csv', index=False)
 
 # Rest of your plotting and analysis code...
 
