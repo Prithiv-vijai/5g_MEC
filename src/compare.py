@@ -8,11 +8,11 @@ metrics_df = pd.read_csv(file_path)
 # Filter HGBRT rows
 hgbrt_df = metrics_df[metrics_df['Model Name'].str.contains('Hgbrt|hgbrt')]
 
-# Define metrics to compare
+# Define metrics to compare, excluding 'Adjusted R2'
 metrics = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
 
 # Initialize the plot
-fig, axes = plt.subplots(nrows=2, figsize=(18, 10))
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(18, 10))
 axes = axes.flatten()
 fig.suptitle('Comparison of HGBRT Models')
 
@@ -25,7 +25,7 @@ for idx, metric in enumerate(metrics):
         if metric in ['MSE', 'RMSE', 'MAE']:
             best_value = hgbrt_df[metric].min()
             colors = ['green' if value == best_value else 'red' for value in hgbrt_df[metric]]
-        else:  # For 'R2', 'Adjusted R2'
+        else:  # For 'R2', 'MAPE'
             best_value = hgbrt_df[metric].max()
             colors = ['green' if value == best_value else 'red' for value in hgbrt_df[metric]]
         
@@ -39,6 +39,10 @@ for idx, metric in enumerate(metrics):
         for bar in bars:
             yval = bar.get_height()
             ax.text(bar.get_x() + bar.get_width()/2, yval, f'{yval:.4f}', va='bottom', ha='center')  # ha: horizontal alignment
+
+# Remove the subplot for 'Adjusted R2' if it was included
+if 'Adjusted R2' not in metrics:
+    fig.delaxes(axes[-1])  # Remove the last subplot in the last position
 
 # Adjust layout
 plt.tight_layout(rect=[0, 0, 1, 0.95])

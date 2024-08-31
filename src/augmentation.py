@@ -49,7 +49,10 @@ augmented_random = random_sampling_with_noise(df, target_size)
 combined_data = pd.concat([df, augmented_random], ignore_index=True)
 
 # Filter out rows based on the specified conditions
-filtered_data = combined_data
+filtered_data = combined_data[
+    (combined_data['Required_Bandwidth'] >= 0) & 
+    (combined_data['Allocated_Bandwidth'] >= 0) 
+]
 
 # Equalize the number of rows for each application type after filtering
 final_data = pd.DataFrame()
@@ -60,7 +63,7 @@ for app_type in filtered_data['Application_Type'].unique():
     final_data = pd.concat([final_data, app_data.sample(min_rows_per_app)], ignore_index=True)
 
 # Calculate and print correlation similarity scores
-score_random = correlation_similarity_score(df.drop(columns=['User_ID']), augmented_random.drop(columns=['User_ID']))
+score_random = correlation_similarity_score(df.drop(columns=['User_ID']), final_data.drop(columns=['User_ID']))
 print(f"Correlation Similarity Score - Random Sampling with Noise: {score_random}")
 
 # Print the number of rows in the final dataset

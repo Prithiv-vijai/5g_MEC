@@ -26,7 +26,7 @@ output_dir = '../graphs/model_output/'
 os.makedirs(output_dir, exist_ok=True)
 
 # Load the dataset from a CSV file
-df = pd.read_csv('../data/augmented_dataset.csv')
+df = pd.read_csv('../data/augmented_datasett.csv')
 
 # Define features (X) and target (y)
 X = df[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
@@ -74,7 +74,6 @@ for group_name, models in model_groups.items():
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
         mape = mean_absolute_percentage_error(y_test, y_pred)
-        adj_r2 = 1 - (1-r2) * (len(y_test)-1) / (len(y_test) - X_test.shape[1] - 1)
 
         results[(group_name, name)] = {'Model Name': name,
                                        'Model Category': group_name,
@@ -82,8 +81,7 @@ for group_name, models in model_groups.items():
                                        'RMSE': rmse,
                                        'MAE': mae,
                                        'R2': r2,
-                                       'MAPE': mape,
-                                       'Adjusted R2': adj_r2}
+                                       'MAPE': mape}
         predictions[(group_name, name)] = y_pred
 
 # Convert results to a DataFrame
@@ -92,14 +90,12 @@ results_df = pd.DataFrame(results).T.reset_index(drop=True)
 # Save the results DataFrame to a CSV file
 results_df.to_csv('../data/model_performance_metrics.csv', index=False)
 
-# Rest of your plotting and analysis code...
-
-# Define metrics to plot
-metrics_to_plot = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Adjusted R2']
+# Define metrics to plot, excluding 'Adjusted R2'
+metrics_to_plot = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
 
 # Function to add rank labels
 def add_rank_labels(ax, data, metric):
-    sorted_data = data.sort_values(by=metric, ascending=metric not in ['R2', 'Adjusted R2'])
+    sorted_data = data.sort_values(by=metric, ascending=metric not in ['R2'])
     for rank, (index, row) in enumerate(sorted_data.iterrows(), 1):
         bar = ax.patches[index]
         height = bar.get_height()
@@ -125,7 +121,7 @@ for group_name, models in model_groups.items():
         sns.barplot(x='Model', y=metric, data=group_metrics_df, ax=axes[i])
         axes[i].set_title(f'{metric} Comparison ({group_name})')
         axes[i].tick_params(axis='x', rotation=45)
-        if metric in ['R2', 'Adjusted R2']:
+        if metric == 'R2':
             axes[i].set_ylim(0, 1.5)
         else:
             axes[i].set_ylim(0, group_metrics_df[metric].max() * 1.1)
@@ -167,7 +163,6 @@ for group_name, models in model_groups.items():
 # Find and print the best values for each metric
 best_models = {metric: min(results.items(), key=lambda x: x[1][metric]) for metric in ['MSE', 'RMSE', 'MAE', 'MAPE']}
 best_models['R2'] = max(results.items(), key=lambda x: x[1]['R2'])
-best_models['Adjusted R2'] = max(results.items(), key=lambda x: x[1]['Adjusted R2'])
 
 print("\nBest Models for Each Metric:")
 for metric, ((group_name, model_name), metrics) in best_models.items():
@@ -197,26 +192,9 @@ for group_name, model_name in top_models.items():
         'RMSE': metrics['RMSE'],
         'MAE': metrics['MAE'],
         'R2': metrics['R2'],
-        'MAPE': metrics['MAPE'],
-        'Adjusted R2': metrics['Adjusted R2'],
-        'Rank': 1  # All top models are ranked #1
+        'MAPE': metrics['MAPE']
     })
 
 top_models_df = pd.DataFrame(top_models_df)
-
-# Plot top-ranked models
-fig, axes = plt.subplots(2, 3, figsize=(24, 10))
-axes = axes.ravel()
-
-for i, metric in enumerate(metrics_to_plot):
-    sns.barplot(x='Model', y=metric, data=top_models_df, ax=axes[i], hue='Group', palette='Set1')
-    axes[i].set_title(f'Top-Ranked Models - {metric}')
-    axes[i].tick_params(axis='x', rotation=45)
-    if metric in ['R2', 'Adjusted R2']:
-        axes[i].set_ylim(0, 1.5)
-    else:
-        axes[i].set_ylim(0, top_models_df[metric].max() * 1.1)
-    add_rank_labels(axes[i], top_models_df, metric)
-
-plt.tight_layout()
-plt.savefig(os.path.join(output_dir, 'top_ranked_models_comparison(augmented).png'))
+print("\nTop Models for Each Category:")
+print(top_models_df)

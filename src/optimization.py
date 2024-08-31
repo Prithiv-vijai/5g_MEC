@@ -23,15 +23,14 @@ def calculate_metrics(y_test, y_pred):
     mse = mean_squared_error(y_test, y_pred)
     rmse = np.sqrt(mse)
     r2 = r2_score(y_test, y_pred)
-    adjusted_r2 = 1 - (1-r2) * (len(y_test)-1)/(len(y_test)-X_test.shape[1]-1)
     mape = mean_absolute_percentage_error(y_test, y_pred)
     mae = mean_absolute_error(y_test, y_pred)
-    return mse, rmse, r2, adjusted_r2, mape, mae
+    return mse, rmse, mae , r2, mape
 
 # Function to append metrics to CSV
 def append_metrics_to_csv(model_name, metrics, model_category='Boosting Models'):
     # Define the order of columns as per your requirement
-    column_order = ['Model Name', 'Model Category', 'MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Adjusted R2']
+    column_order = ['Model Name', 'Model Category', 'MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
     
     # Create a dictionary with correct keys and values
     metrics_dict = {
@@ -42,7 +41,6 @@ def append_metrics_to_csv(model_name, metrics, model_category='Boosting Models')
         'MAE': [metrics[2]],
         'R2': [metrics[3]],
         'MAPE': [metrics[4]],
-        'Adjusted R2': [metrics[5]]
     }
     
     # Convert dictionary to DataFrame
@@ -71,7 +69,7 @@ bayes_search.fit(X_train, y_train)
 
 y_pred_bayes = bayes_search.best_estimator_.predict(X_test)
 metrics_bayes = calculate_metrics(y_test, y_pred_bayes)
-append_metrics_to_csv('hgbrt_bayesian', metrics_bayes)
+append_metrics_to_csv('Hgbrt_bayesian', metrics_bayes)
 
 # Grid Search
 param_grid = {
@@ -88,7 +86,7 @@ grid_search.fit(X_train, y_train)
 
 y_pred_grid = grid_search.best_estimator_.predict(X_test)
 metrics_grid = calculate_metrics(y_test, y_pred_grid)
-append_metrics_to_csv('hgbrt_grid', metrics_grid)
+append_metrics_to_csv('Hgbrt_grid', metrics_grid)
 
 # Random Search
 param_grid_random = {
@@ -105,7 +103,4 @@ random_search.fit(X_train, y_train)
 
 y_pred_random = random_search.best_estimator_.predict(X_test)
 metrics_random = calculate_metrics(y_test, y_pred_random)
-append_metrics_to_csv('hgbrt_random', metrics_random)
-
-
-
+append_metrics_to_csv('Hgbrt_random', metrics_random)
