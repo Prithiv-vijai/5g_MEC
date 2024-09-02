@@ -38,7 +38,6 @@ top_models = pd.concat([
     df.nsmallest(5, 'MAE').assign(Metric='MAE'),
     df.nlargest(5, 'R2').assign(Metric='R2'),
     df.nsmallest(5, 'MAPE').assign(Metric='MAPE'),
-    df.nlargest(5, 'Adjusted R2').assign(Metric='Adjusted R2')
 ])
 
 # Add ranking column
@@ -47,9 +46,9 @@ top_models['Rank'] = top_models.groupby('Metric').cumcount() + 1
 # Plotting
 fig, axs = plt.subplots(2, 3, figsize=(24, 10))  # Increased figure size
 
-metrics = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Adjusted R2']
+metrics = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
 titles = ['Mean Squared Error (MSE)', 'Root Mean Squared Error (RMSE)', 'Mean Absolute Error (MAE)', 
-          'R-squared (R2)', 'Mean Absolute Percentage Error (MAPE)', 'Adjusted R-squared']
+          'R-squared (R2)', 'Mean Absolute Percentage Error (MAPE)']
 
 # Custom y-axis limits for each metric
 y_limits = {
@@ -58,7 +57,6 @@ y_limits = {
     'MAE': (0, 1.5),
     'R2': (0, 1.25),
     'MAPE': (0, 0.05),  # Increased limit for better visibility
-    'Adjusted R2': (0, 1.25)
 }
 
 for i, metric in enumerate(metrics):
@@ -78,6 +76,8 @@ for i, metric in enumerate(metrics):
 
     # Annotate the plot
     annotate_plot(ax, metric_data, metric)
+
+fig.delaxes(axs[1, 2])
 
 # Adjust spacing between subplots
 fig.subplots_adjust(hspace=0.4, wspace=0.3)  # Increase space between rows and columns
