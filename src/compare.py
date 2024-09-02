@@ -22,7 +22,7 @@ for idx, metric in enumerate(metrics):
         ax = axes[idx]
         
         # Determine the best value for each metric type
-        if metric in ['MSE', 'RMSE', 'MAE']:
+        if metric in ['MSE', 'RMSE', 'MAE' , 'MAPE']:
             best_value = hgbrt_df[metric].min()
             colors = ['green' if value == best_value else 'red' for value in hgbrt_df[metric]]
         else:  # For 'R2', 'MAPE'
