@@ -53,6 +53,20 @@ def append_metrics_to_csv(model_name, metrics, model_category='Boosting Models')
     else:
         df_metrics.to_csv(file_path, mode='a', header=False, index=False, columns=column_order)
         
+
+# Function to save best parameters to CSV
+def append_best_params_to_csv(model_name, best_params):
+    params_dict = {'Model Name': [model_name]}
+    params_dict.update({param: [value] for param, value in best_params.items()})
+    
+    df_params = pd.DataFrame(params_dict)
+    file_path = '../data/model_best_params.csv'
+    
+    if not os.path.isfile(file_path):
+        df_params.to_csv(file_path, mode='w', header=True, index=False)
+    else:
+        df_params.to_csv(file_path, mode='a', header=False, index=False)
+        
 # Bayesian Optimization
 search_space = {
     'learning_rate': Real(0.001, 0.5, prior='uniform'),
@@ -70,6 +84,7 @@ bayes_search.fit(X_train, y_train)
 y_pred_bayes = bayes_search.best_estimator_.predict(X_test)
 metrics_bayes = calculate_metrics(y_test, y_pred_bayes)
 append_metrics_to_csv('Hgbrt_bayesian', metrics_bayes)
+append_best_params_to_csv('Hgbrt_bayesian', bayes_search.best_params_)
 
 # Grid Search
 param_grid = {
@@ -87,6 +102,7 @@ grid_search.fit(X_train, y_train)
 y_pred_grid = grid_search.best_estimator_.predict(X_test)
 metrics_grid = calculate_metrics(y_test, y_pred_grid)
 append_metrics_to_csv('Hgbrt_grid', metrics_grid)
+append_best_params_to_csv('Hgbrt_grid', grid_search.best_params_)
 
 # Random Search
 param_grid_random = {
@@ -104,3 +120,4 @@ random_search.fit(X_train, y_train)
 y_pred_random = random_search.best_estimator_.predict(X_test)
 metrics_random = calculate_metrics(y_test, y_pred_random)
 append_metrics_to_csv('Hgbrt_random', metrics_random)
+append_best_params_to_csv('Hgbrt_random', random_search.best_params_)
