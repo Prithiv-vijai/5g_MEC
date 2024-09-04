@@ -1,16 +1,7 @@
 Model Name,l2_regularization,learning_rate,max_depth,max_iter,max_leaf_nodes,min_samples_leaf
-1Hgbrt_bayesian,2.0,0.06402478700808989,20,100,48,10
-1Hgbrt_grid,0.1,0.1,20,200,31,20
-1Hgbrt_random,10,50,500,,0.01,0
-2Hgbrt_bayesian,2.0,0.09739499396401267,25,500,100,10
-2Hgbrt_grid,0.1,0.1,10,200,20,20
-2Hgbrt_random,10,50,500,,0.01,0
-3Hgbrt_bayesian,1.1494451493872129,0.10233960741927431,20,289,64,11
-3Hgbrt_grid,0,0.1,10,100,31,20
-3Hgbrt_random,30,70,200,25,0.1,0.1
-4Hgbrt_bayesian,2.0,0.2650535156464395,25,500,20,10
-4Hgbrt_grid,0.5,0.1,20,200,31,20
-4Hgbrt_random,10,50,400,,0.05,0
-5Hgbrt_bayesian,2.0,0.25657649213844674,25,100,20,10Hgbrt_grid,0.1,0.1,10,200,31,20
-5Hgbrt_random,20,70,200,10,0.3,0.1
-5Hgbrt_grid,0.5,0.1,10,200,31,20
+Hgbrt_bayesian,0.9816035984272244,0.11827189050120786,22,359,70,10
+Hgbrt_grid,0.1,0.1,,200,31,20
+Hgbrt_random,20,31,300,15,0.1,0.2
+Hgbrt_bayesian,1.6175418433112505,0.08703171658310416,17,432,51,10
+Hgbrt_grid,0.1,0.1,None,200,31,20
+Hgbrt_random,10,50,400,None,0.05,0

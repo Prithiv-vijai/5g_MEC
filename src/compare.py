@@ -6,7 +6,7 @@ file_path = '../data/model_performance_metrics.csv'
 metrics_df = pd.read_csv(file_path)
 
 # Filter HGBRT rows
-hgbrt_df = metrics_df[metrics_df['Model Name'].str.contains('Hgbrt|hgbrt')]
+hgbrt_df = metrics_df[metrics_df['Model Name'].str.startswith(('Hgbrt'))]
 
 # Define metrics to compare, excluding 'Adjusted R2'
 metrics = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE']

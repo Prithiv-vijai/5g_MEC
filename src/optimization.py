@@ -9,7 +9,7 @@ from skopt.space import Real, Integer
 import os 
 
 # Load the dataset from a CSV file
-data = pd.read_csv('../data/augmented_dataset.csv')
+data = pd.read_csv('../data/augmented_datasett.csv')
 
 # Define features and target
 X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
@@ -52,10 +52,14 @@ def append_metrics_to_csv(model_name, metrics, model_category='Boosting Models')
         df_metrics.to_csv(file_path, mode='w', header=True, index=False, columns=column_order)
     else:
         df_metrics.to_csv(file_path, mode='a', header=False, index=False, columns=column_order)
-        
 
 # Function to save best parameters to CSV
 def append_best_params_to_csv(model_name, best_params):
+    # Handle missing or None values
+    for key in best_params:
+        if best_params[key] is None:
+            best_params[key] = 'None'
+    
     params_dict = {'Model Name': [model_name]}
     params_dict.update({param: [value] for param, value in best_params.items()})
     
@@ -72,12 +76,12 @@ search_space = {
     'learning_rate': Real(0.001, 0.5, prior='uniform'),
     'max_iter': Integer(100, 500),
     'max_leaf_nodes': Integer(20, 100),
-    'max_depth': Integer(5, 25) or None,
+    'max_depth': Integer(5, 25),  # No need for or None in the search space
     'min_samples_leaf': Integer(10, 50),
     'l2_regularization': Real(0, 2, prior='uniform')
 }
 
-model = HistGradientBoostingRegressor()
+model = HistGradientBoostingRegressor(random_state=10)
 bayes_search = BayesSearchCV(model, search_space, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
 bayes_search.fit(X_train, y_train)
 
