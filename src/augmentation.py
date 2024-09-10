@@ -46,7 +46,7 @@ target_size = 16000
 augmented_random = random_sampling_with_noise(df, target_size)
 
 # Append the existing data to the augmented data
-combined_data = pd.concat([df, augmented_random], ignore_index=True)
+combined_data = augmented_random
 
 # Filter out rows based on the specified conditions
 filtered_data = combined_data[

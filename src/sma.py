@@ -138,7 +138,7 @@ y_pred_sma = model.predict(X_test)
 metrics_sma = calculate_metrics(y_test, y_pred_sma)
 
 # Append SMA results to CSV
-append_metrics_to_csv('Hgbrt_sma_optimized', metrics_sma)
+append_metrics_to_csv('Hgbrt_sma', metrics_sma)
 
 # Append the best parameters to CSV
-append_best_params_to_csv('Hgbrt_sma_optimized', best_params)
+append_best_params_to_csv('Hgbrt_sma', best_params)

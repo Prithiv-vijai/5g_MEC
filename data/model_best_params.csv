@@ -1,7 +1,5 @@
 Model Name,l2_regularization,learning_rate,max_depth,max_iter,max_leaf_nodes,min_samples_leaf
-Hgbrt_bayesian,0.9816035984272244,0.11827189050120786,22,359,70,10
-Hgbrt_grid,0.1,0.1,,200,31,20
-Hgbrt_random,20,31,300,15,0.1,0.2
 Hgbrt_bayesian,1.6175418433112505,0.08703171658310416,17,432,51,10
 Hgbrt_grid,0.1,0.1,None,200,31,20
 Hgbrt_random,10,50,400,None,0.05,0
+Hgbrt_sma,0.210694618237548,421,43,11,12,1.2200822647534968
