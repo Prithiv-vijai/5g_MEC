@@ -11,6 +11,15 @@ hgbrt_df = metrics_df[metrics_df['Model Name'].str.startswith(('Hgbrt'))]
 # Define metrics to compare, excluding 'Adjusted R2'
 metrics = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
 
+# Custom y-limits for each metric
+y_limits = {
+    'MSE': (0.6, 1.6),    # Adjust the limits based on your dataset
+    'RMSE': (0.6, 1.6),
+    'MAE': (0.4, 1.2),
+    'R2': (0.95, 1),
+    'MAPE': (0, 0.015),
+}
+
 # Initialize the plot
 fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(18, 10))
 axes = axes.flatten()
@@ -25,7 +34,7 @@ for idx, metric in enumerate(metrics):
         if metric in ['MSE', 'RMSE', 'MAE' , 'MAPE']:
             best_value = hgbrt_df[metric].min()
             colors = ['green' if value == best_value else 'red' for value in hgbrt_df[metric]]
-        else:  # For 'R2', 'MAPE'
+        else:  # For 'R2'
             best_value = hgbrt_df[metric].max()
             colors = ['green' if value == best_value else 'red' for value in hgbrt_df[metric]]
         
@@ -35,10 +44,14 @@ for idx, metric in enumerate(metrics):
         ax.set_ylabel(metric)
         ax.tick_params(axis='x', rotation=45)
         
+        # Set custom y-limits
+        if metric in y_limits:
+            ax.set_ylim(y_limits[metric])
+
         # Add values on bars with 4 decimal places
         for bar in bars:
             yval = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2, yval, f'{yval:.4f}', va='bottom', ha='center')  # ha: horizontal alignment
+            ax.text(bar.get_x() + bar.get_width()/2, yval, f'{yval:.4f}', va='bottom', ha='center')
 
 # Remove the subplot for 'Adjusted R2' if it was included
 if 'Adjusted R2' not in metrics:

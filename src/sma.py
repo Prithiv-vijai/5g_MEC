@@ -126,7 +126,7 @@ def update_position(agent, best_agent, fitness, t, max_iter, bounds):
 model = HistGradientBoostingRegressor(random_state=42)
 
 # Run the SMA optimization
-best_agent, best_fitness = slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=30, max_iter=100)
+best_agent, best_fitness = slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=100, max_iter=200)
 
 # Use the best parameters found by SMA to train the final model
 best_params = array_to_dict(best_agent)
@@ -138,7 +138,7 @@ y_pred_sma = model.predict(X_test)
 metrics_sma = calculate_metrics(y_test, y_pred_sma)
 
 # Append SMA results to CSV
-append_metrics_to_csv('Hgbrt_sma', metrics_sma)
+append_metrics_to_csv('Hgbrt_sma_more', metrics_sma)
 
 # Append the best parameters to CSV
-append_best_params_to_csv('Hgbrt_sma', best_params)
+append_best_params_to_csv('Hgbrt_sma_more', best_params)
