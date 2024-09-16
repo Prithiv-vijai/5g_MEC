@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import random
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error, mean_absolute_error
@@ -45,7 +46,6 @@ def append_metrics_to_csv(model_name, metrics, model_category='Boosting Models')
 
 # Function to append best parameters to CSV
 def append_best_params_to_csv(model_name, best_params):
-    # Convert best_params dictionary to DataFrame
     df_params = pd.DataFrame([best_params])
     df_params.insert(0, 'Model Name', model_name)
     
@@ -76,51 +76,57 @@ def array_to_dict(agent):
         'l2_regularization': agent[5]
     }
 
-# Slime Mould Algorithm (SMA)
-def initialize_population(n_agents, dim, bounds):
-    population = np.random.rand(n_agents, dim) * (bounds[:, 1] - bounds[:, 0]) + bounds[:, 0]
-    return population
-
-def fitness_function(model, X_train, y_train, X_test, y_test, params):
+# Objective function to calculate Negative MSE (NMSE)
+def objective_function(params, model, X_train, y_train):
     model.set_params(**params)
     scores = cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error')
-    return -np.mean(scores)
+    return -np.mean(scores)  # Negative MSE for minimization
 
-def slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=30, max_iter=100):
+# Slime Mould Algorithm (SMA)
+def initialize_population(n_agents, dim, bounds):
+    population = np.random.uniform(bounds[:, 0], bounds[:, 1], size=(n_agents, dim))
+    return population
+
+def slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=50, max_iter=100):
     dim = bounds.shape[0]
-    population = initialize_population(n_agents, dim, bounds)
+    positions = initialize_population(n_agents, dim, bounds)
     fitness = np.zeros(n_agents)
     best_agent = None
     best_fitness = float('inf')
+    w = 0.9
+    z = 0.1
+    vb = 0
 
-    for agent in range(n_agents):
-        params = array_to_dict(population[agent])
-        fitness[agent] = fitness_function(model, X_train, y_train, X_test, y_test, params)
-        
-        if fitness[agent] < best_fitness:
-            best_fitness = fitness[agent]
-            best_agent = population[agent].copy()
-
-    for t in range(max_iter):
+    for i in range(max_iter):
+        # Calculate fitness for each agent
         for agent in range(n_agents):
-            population[agent] = update_position(population[agent], best_agent, fitness, t, max_iter, bounds)
-            params = array_to_dict(population[agent])
-            fitness[agent] = fitness_function(model, X_train, y_train, X_test, y_test, params)
-            
+            params = array_to_dict(positions[agent])
+            fitness[agent] = objective_function(params, model, X_train, y_train)
             if fitness[agent] < best_fitness:
                 best_fitness = fitness[agent]
-                best_agent = population[agent].copy()
-        
+                best_agent = positions[agent].copy()
+
+        # Sort agents by fitness
+        sorted_indices = np.argsort(fitness)
+        positions = positions[sorted_indices]
+
+        # Update positions
+        w *= np.exp(-i / max_iter)
+        for j in range(n_agents):
+            if random.random() < w:
+                best_pos = positions[0]
+                positions[j] += np.random.rand() * (best_pos - positions[j])
+            else:
+                random_index = random.randint(0, n_agents - 1)
+                random_pos = positions[random_index]
+                positions[j] += z * np.random.rand() * (random_pos - positions[j])
+            
+            # Add random noise based on velocity
+            positions[j] += vb * np.random.randn(dim)
+            # Ensure the new position is within bounds
+            positions[j] = np.clip(positions[j], bounds[:, 0], bounds[:, 1])
+
     return best_agent, best_fitness
-
-def update_position(agent, best_agent, fitness, t, max_iter, bounds):
-    b = 1 - t / max_iter
-    d = 2 * (np.random.rand() - 0.5)
-    new_agent = agent + d * b * (best_agent - agent)
-
-    # Ensure the new position is within bounds
-    new_agent = np.clip(new_agent, bounds[:, 0], bounds[:, 1])
-    return new_agent
 
 # Define the HGBRT model
 model = HistGradientBoostingRegressor(random_state=42)
@@ -138,7 +144,7 @@ y_pred_sma = model.predict(X_test)
 metrics_sma = calculate_metrics(y_test, y_pred_sma)
 
 # Append SMA results to CSV
-append_metrics_to_csv('Hgbrt_sma_more', metrics_sma)
+append_metrics_to_csv('Hgbrt_sma_new', metrics_sma)
 
 # Append the best parameters to CSV
-append_best_params_to_csv('Hgbrt_sma_more', best_params)
+append_best_params_to_csv('Hgbrt_sma_new', best_params)
