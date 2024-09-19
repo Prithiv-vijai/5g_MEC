@@ -121,7 +121,7 @@ def append_metrics_to_csv(model_name: str, metrics: Tuple[float, float, float, f
         'Completion Time': [completion_time]
     }
     df_metrics = pd.DataFrame(metrics_dict)
-    file_path = "/content/drive/MyDrive/Colab Notebooks/5g_MEC-main/data/model_performance_metrics.csv"
+    file_path = "../data/model_performance_metrics.csv"
     if not os.path.isfile(file_path):
         df_metrics.to_csv(file_path, mode='w', header=True, index=False, columns=column_order)
     else:
@@ -133,7 +133,7 @@ def append_best_params_to_csv(model_name: str, best_params: dict, completion_tim
     df_params.insert(0, 'Model Name', model_name)
     df_params.insert(1, 'Completion Time', completion_time)
     
-    file_path = "/content/drive/MyDrive/Colab Notebooks/5g_MEC-main/data/model_best_params.csv"
+    file_path = "../data/model_best_params.csv"
     if not os.path.isfile(file_path):
         df_params.to_csv(file_path, mode='w', header=True, index=False)
     else:
@@ -141,7 +141,7 @@ def append_best_params_to_csv(model_name: str, best_params: dict, completion_tim
 
 if __name__ == "__main__":
     # Load the dataset
-    data = pd.read_csv("/content/drive/MyDrive/Colab Notebooks/5g_MEC-main/data/augmented_datasett.csv")
+    data = pd.read_csv("../data/augmented_datasett.csv")
     X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
     y = data['Resource_Allocation']
 

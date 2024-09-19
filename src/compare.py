@@ -10,6 +10,7 @@ hgbrt_df = metrics_df[metrics_df['Model Name'].str.startswith(('Hgbrt'))]
 
 # Define metrics to compare, excluding 'Adjusted R2'
 metrics = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
+additional_metric = 'CT'
 
 # Custom y-limits for each metric
 y_limits = {
@@ -18,6 +19,7 @@ y_limits = {
     'MAE': (0.4, 1.2),
     'R2': (0.95, 1),
     'MAPE': (0, 0.015),
+    'CT': (0, hgbrt_df['CT'].max() * 1.1)  # Adjust based on actual data
 }
 
 # Initialize the plot
@@ -31,7 +33,7 @@ for idx, metric in enumerate(metrics):
         ax = axes[idx]
         
         # Determine the best value for each metric type
-        if metric in ['MSE', 'RMSE', 'MAE' , 'MAPE']:
+        if metric in ['MSE', 'RMSE', 'MAE', 'MAPE']:
             best_value = hgbrt_df[metric].min()
             colors = ['green' if value == best_value else 'red' for value in hgbrt_df[metric]]
         else:  # For 'R2'
@@ -53,11 +55,28 @@ for idx, metric in enumerate(metrics):
             yval = bar.get_height()
             ax.text(bar.get_x() + bar.get_width()/2, yval, f'{yval:.4f}', va='bottom', ha='center')
 
-# Remove the subplot for 'Adjusted R2' if it was included
-if 'Adjusted R2' not in metrics:
-    fig.delaxes(axes[-1])  # Remove the last subplot in the last position
+# Plot 'Completion Time' as an extra subplot
+if additional_metric in hgbrt_df.columns:
+    ax = axes[-1]  # The last subplot
+    best_value = hgbrt_df[additional_metric].min()
+    colors = ['green' if value == best_value else 'red' for value in hgbrt_df[additional_metric]]
+    
+    bars = ax.bar(hgbrt_df['Model Name'], hgbrt_df[additional_metric], color=colors)
+    ax.set_title(f'{additional_metric} Comparison')
+    ax.set_xlabel('Model Name')
+    ax.set_ylabel('Completion Time (s)')  # Assuming time is in seconds
+    ax.tick_params(axis='x', rotation=45)
+    
+    # Set y-limits for Completion Time
+    if additional_metric in y_limits:
+        ax.set_ylim(y_limits[additional_metric])
+    
+    # Add values on bars with 4 decimal places
+    for bar in bars:
+        yval = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2, yval, f'{yval:.4f}', va='bottom', ha='center')
 
-# Adjust layout
+# Adjust layout to avoid overlap
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 
 # Print values and ranks with 4 decimal places
@@ -66,6 +85,7 @@ for index, row in hgbrt_df.iterrows():
     print(f"Model: {row['Model Name']}")
     for metric in metrics:
         print(f"  {metric}: {row[metric]:.4f}")
+    print(f"  {additional_metric}: {row[additional_metric]:.4f}")
 
 # Save the plot
 plt.savefig('../graphs/model_output/hgbrt_all_searches_comparison.png')

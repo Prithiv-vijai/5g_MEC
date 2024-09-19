@@ -21,7 +21,7 @@ CONVERGENCE = 0.001         # Convergence value
 MAX_ITER = 50              # Maximum number of iterations
 
 # Load the dataset
-data = pd.read_csv("/content/drive/MyDrive/Colab Notebooks/5g_MEC-main/data/augmented_datasett.csv")
+data = pd.read_csv("../data/augmented_dataset.csv")
 
 # Define features and target
 X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
@@ -52,7 +52,7 @@ def append_metrics_to_csv(model_name, metrics, completion_time=None, model_categ
         'Completion Time': [completion_time],
     }
     df_metrics = pd.DataFrame(metrics_dict)
-    file_path = "/content/drive/MyDrive/Colab Notebooks/5g_MEC-main/data/model_performance_metrics.csv"
+    file_path = "../data/model_performance_metrics.csv"
     if not os.path.isfile(file_path):
         df_metrics.to_csv(file_path, mode='w', header=True, index=False, columns=column_order)
     else:
@@ -63,7 +63,7 @@ def append_best_params_to_csv(model_name, best_params):
     df_params = pd.DataFrame([best_params])
     df_params.insert(0, 'Model Name', model_name)
     
-    file_path = "/content/drive/MyDrive/Colab Notebooks/5g_MEC-main/data/model_best_params.csv"
+    file_path = "../data/model_best_params.csv"
     if not os.path.isfile(file_path):
         df_params.to_csv(file_path, mode='w', header=True, index=False)
     else:
@@ -81,7 +81,7 @@ class Swarm():
     def __init__(self, pop, v_max):
         self.particles = []             # List of particles in the swarm
         self.best_pos = None            # Best particle of the swarm
-        self.best_pos_z = math.inf      # Best particle of the swarm
+        self.best_pos_z = float('inf')  # Best particle of the swarm
 
         for _ in range(pop):
             x = np.random.uniform(B_LO, B_HI)
@@ -89,10 +89,7 @@ class Swarm():
             velocity = np.random.rand(DIMENSIONS) * v_max
             particle = Particle(x, z, velocity)
             self.particles.append(particle)
-            if self.best_pos != None and particle.pos_z < self.best_pos_z:
-                self.best_pos = particle.pos.copy()
-                self.best_pos_z = particle.pos_z
-            else:
+            if particle.pos_z < self.best_pos_z:
                 self.best_pos = particle.pos.copy()
                 self.best_pos_z = particle.pos_z
 
@@ -130,8 +127,9 @@ def particle_swarm_optimization():
     while curr_iter < MAX_ITER:
         fig.clf()
         ax = fig.add_subplot(1, 1, 1)
-        ax.contourf(X, Y, np.array([[swarm.evaluate_cost([xi, yi, 20, 5, 10, 0]) for xi in x] for yi in y]), cmap='viridis')
-        plt.colorbar(ax.contourf(X, Y, np.array([[swarm.evaluate_cost([xi, yi, 20, 5, 10, 0]) for xi in x] for yi in y]), cmap='viridis'))
+        Z = np.array([[swarm.evaluate_cost([xi, yi, 20, 5, 10, 0]) for xi in x] for yi in y])
+        c = ax.contourf(X, Y, Z, cmap='viridis')
+        plt.colorbar(c)
 
         for particle in swarm.particles:
             for i in range(DIMENSIONS):
@@ -145,11 +143,11 @@ def particle_swarm_optimization():
 
                 # Check if velocity is exceeded
                 if new_velocity > V_MAX:
-                    particle.velocity[i] = V_MAX
+                    new_velocity = V_MAX
                 elif new_velocity < -V_MAX:
-                    particle.velocity[i] = -V_MAX
-                else:
-                    particle.velocity[i] = new_velocity
+                    new_velocity = -V_MAX
+
+                particle.velocity[i] = new_velocity
 
             ax.scatter(particle.pos[0], particle.pos[1], marker='*', c='r')
             ax.arrow(particle.pos[0], particle.pos[1], particle.velocity[0], particle.velocity[1], head_width=0.1, head_length=0.1, color='k')
