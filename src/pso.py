@@ -1,24 +1,23 @@
 import numpy as np
 import pandas as pd
-import math
+import time
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
-import matplotlib.pyplot as plt
 import os
-import time
 
-DIMENSIONS = 6              # Number of dimensions for hyperparameters
-GLOBAL_BEST = 0             # Global Best of Cost function
-B_LO = [0.001, 100, 20, 5, 10, 0]  # Lower boundary of search space
-B_HI = [0.5, 500, 100, 25, 50, 2]  # Upper boundary of search space
+# Constants for Particle Swarm Optimization
+DIMENSIONS = 6              # Number of dimensions (hyperparameters)
+B_LO = [0.001, 100, 20, 5, 10, 0]  # Lower boundary of search space for hyperparameters
+B_HI = [0.5, 500, 100, 25, 50, 2]  # Upper boundary of search space for hyperparameters
 
 POPULATION = 20             # Number of particles in the swarm
 V_MAX = 0.1                 # Maximum velocity value
 PERSONAL_C = 2.0            # Personal coefficient factor
 SOCIAL_C = 2.0              # Social coefficient factor
-CONVERGENCE = 0.001         # Convergence value
-MAX_ITER = 50              # Maximum number of iterations
+CONVERGENCE = 0.001         # Convergence threshold
+MAX_ITER = 10               # Maximum number of iterations
+NO_IMPROVEMENT_LIMIT = 3    # Number of iterations with no improvement to stop early
 
 # Load the dataset
 data = pd.read_csv("../data/augmented_dataset.csv")
@@ -27,6 +26,7 @@ data = pd.read_csv("../data/augmented_dataset.csv")
 X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
 y = data['Resource_Allocation']
 
+# Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Function to calculate metrics
@@ -38,7 +38,7 @@ def calculate_metrics(y_test, y_pred):
     mae = mean_absolute_error(y_test, y_pred)
     return mse, rmse, mae, r2, mape
 
-# Function to append metrics to CSV
+# Function to append metrics to CSV file
 def append_metrics_to_csv(model_name, metrics, completion_time=None, model_category='Boosting Models'):
     column_order = ['Model Name', 'Model Category', 'MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Completion Time']
     metrics_dict = {
@@ -53,42 +53,58 @@ def append_metrics_to_csv(model_name, metrics, completion_time=None, model_categ
     }
     df_metrics = pd.DataFrame(metrics_dict)
     file_path = "../data/model_performance_metrics.csv"
-    if not os.path.isfile(file_path):
-        df_metrics.to_csv(file_path, mode='w', header=True, index=False, columns=column_order)
-    else:
-        df_metrics.to_csv(file_path, mode='a', header=False, index=False, columns=column_order)
-
-# Function to append best parameters to CSV
-def append_best_params_to_csv(model_name, best_params):
-    df_params = pd.DataFrame([best_params])
-    df_params.insert(0, 'Model Name', model_name)
     
-    file_path = "../data/model_best_params.csv"
-    if not os.path.isfile(file_path):
-        df_params.to_csv(file_path, mode='w', header=True, index=False)
-    else:
-        df_params.to_csv(file_path, mode='a', header=False, index=False)
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    
+    # Append to CSV or create if it doesn't exist
+    df_metrics.to_csv(file_path, mode='a', header=not os.path.isfile(file_path), index=False, columns=column_order)
 
-# Particle class
-class Particle():
+# Function to save best parameters to CSV
+def append_best_params_to_csv(model_name, best_params):
+    params_dict = {
+        'Model Name': [model_name],
+        'l2_regularization': [best_params['l2_regularization']],
+        'learning_rate': [best_params['learning_rate']],
+        'max_depth': [best_params['max_depth']],
+        'max_iter': [best_params['max_iter']],
+        'max_leaf_nodes': [best_params['max_leaf_nodes']],
+        'min_samples_leaf': [best_params['min_samples_leaf']]
+    }
+    
+    df_params = pd.DataFrame(params_dict)
+    file_path = '../data/model_best_params.csv'
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    
+    # Append to CSV or create if it doesn't exist
+    df_params.to_csv(file_path, mode='a', header=not os.path.isfile(file_path), index=False)
+
+# Class representing a particle in the swarm
+class Particle:
     def __init__(self, x, z, velocity):
-        self.pos = x
+        self.pos = np.clip(x, B_LO, B_HI)   # Ensure initial position is within bounds
         self.pos_z = z
         self.velocity = velocity
-        self.best_pos = self.pos.copy()
+        self.best_pos = self.pos.copy()  
+        self.best_pos_z = z   # Initialize best_pos_z with the initial cost value
 
-class Swarm():
+# Class representing the swarm
+class Swarm:
     def __init__(self, pop, v_max):
-        self.particles = []             # List of particles in the swarm
-        self.best_pos = None            # Best particle of the swarm
-        self.best_pos_z = float('inf')  # Best particle of the swarm
-
+        self.particles = []               
+        self.best_pos = None              
+        self.best_pos_z = float('inf')    
+        
+        # Initialize particles
         for _ in range(pop):
-            x = np.random.uniform(B_LO, B_HI)
-            z = self.evaluate_cost(x)
-            velocity = np.random.rand(DIMENSIONS) * v_max
+            x = np.random.uniform(B_LO, B_HI)  
+            z = self.evaluate_cost(x)          
+            velocity = np.random.uniform(-v_max, v_max, DIMENSIONS)  
             particle = Particle(x, z, velocity)
             self.particles.append(particle)
+            
             if particle.pos_z < self.best_pos_z:
                 self.best_pos = particle.pos.copy()
                 self.best_pos_z = particle.pos_z
@@ -108,97 +124,93 @@ class Swarm():
         mse = mean_squared_error(y_test, y_pred)
         return mse
 
+# Particle Swarm Optimization algorithm
 def particle_swarm_optimization():
-    # Initialize plotting variables
-    x = np.linspace(B_LO[0], B_HI[0], 50)
-    y = np.linspace(B_LO[1], B_HI[1], 50)
-    X, Y = np.meshgrid(x, y)
-    fig = plt.figure("Particle Swarm Optimization")
-
-    # Initialize swarm
     swarm = Swarm(POPULATION, V_MAX)
+    inertia_weight = 0.5
 
-    # Initialize inertia weight
-    inertia_weight = 0.5 + (np.random.rand()/2)
-    
     curr_iter = 0
-    start_time = time.time()  # Start time
-    
+    start_time = time.time()  
+    no_improvement_counter = 0
+    previous_best_cost = swarm.best_pos_z
+
     while curr_iter < MAX_ITER:
-        fig.clf()
-        ax = fig.add_subplot(1, 1, 1)
-        Z = np.array([[swarm.evaluate_cost([xi, yi, 20, 5, 10, 0]) for xi in x] for yi in y])
-        c = ax.contourf(X, Y, Z, cmap='viridis')
-        plt.colorbar(c)
-
         for particle in swarm.particles:
-            for i in range(DIMENSIONS):
-                r1 = np.random.uniform(0, 1)
-                r2 = np.random.uniform(0, 1)
-                
-                # Update particle's velocity
-                personal_coefficient = PERSONAL_C * r1 * (particle.best_pos[i] - particle.pos[i])
-                social_coefficient = SOCIAL_C * r2 * (swarm.best_pos[i] - particle.pos[i])
-                new_velocity = inertia_weight * particle.velocity[i] + personal_coefficient + social_coefficient
+            r1, r2 = np.random.rand(2)
+            
+            # Update velocity
+            personal_coefficient = PERSONAL_C * r1 * (particle.best_pos - particle.pos)
+            social_coefficient = SOCIAL_C * r2 * (swarm.best_pos - particle.pos)
+            particle.velocity = inertia_weight * particle.velocity + personal_coefficient + social_coefficient
+            particle.velocity = np.clip(particle.velocity, -V_MAX, V_MAX)
 
-                # Check if velocity is exceeded
-                if new_velocity > V_MAX:
-                    new_velocity = V_MAX
-                elif new_velocity < -V_MAX:
-                    new_velocity = -V_MAX
-
-                particle.velocity[i] = new_velocity
-
-            ax.scatter(particle.pos[0], particle.pos[1], marker='*', c='r')
-            ax.arrow(particle.pos[0], particle.pos[1], particle.velocity[0], particle.velocity[1], head_width=0.1, head_length=0.1, color='k')
-
-            # Update particle's current position
+            # Update position
             particle.pos += particle.velocity
+            particle.pos = np.clip(particle.pos, B_LO, B_HI)
             particle.pos_z = swarm.evaluate_cost(particle.pos)
 
-            # Update particle's best known position
-            if particle.pos_z < swarm.evaluate_cost(particle.best_pos):
+            # Update personal best
+            if particle.pos_z < particle.best_pos_z:
                 particle.best_pos = particle.pos.copy()
+                particle.best_pos_z = particle.pos_z
 
-                # Update swarm's best known position
+                # Update global best
                 if particle.pos_z < swarm.best_pos_z:
                     swarm.best_pos = particle.pos.copy()
                     swarm.best_pos_z = particle.pos_z
-                    
-            # Check if particle is within boundaries
-            for dim in range(DIMENSIONS):
-                if particle.pos[dim] > B_HI[dim]:
-                    particle.pos[dim] = np.random.uniform(B_LO[dim], B_HI[dim])
-                    particle.pos_z = swarm.evaluate_cost(particle.pos)
-                if particle.pos[dim] < B_LO[dim]:
-                    particle.pos[dim] = np.random.uniform(B_LO[dim], B_HI[dim])
-                    particle.pos_z = swarm.evaluate_cost(particle.pos)
 
-        plt.subplots_adjust(right=0.95)
-        plt.pause(0.00001)
+        # Update inertia weight
+        inertia_weight *= 0.99
+
         print(f"Iteration {curr_iter + 1}/{MAX_ITER}: Best Cost = {swarm.best_pos_z}")
 
-        # Check for convergence
-        if abs(swarm.best_pos_z - GLOBAL_BEST) < CONVERGENCE:
-            print("The swarm has met convergence criteria after " + str(curr_iter) + " iterations.")
-            break
+        if abs(previous_best_cost - swarm.best_pos_z) < CONVERGENCE:
+            no_improvement_counter += 1
+            if no_improvement_counter >= NO_IMPROVEMENT_LIMIT:
+                print(f"No significant improvement for {NO_IMPROVEMENT_LIMIT} consecutive iterations. Stopping early.")
+                break
+        else:
+            no_improvement_counter = 0
+            previous_best_cost = swarm.best_pos_z
+
         curr_iter += 1
 
-    end_time = time.time()  # End time
+    end_time = time.time()  
     completion_time = end_time - start_time
 
-    # Display final results
     print("Best Parameters found: ", swarm.best_pos)
     print("Best Cost: ", swarm.best_pos_z)
-    append_metrics_to_csv('Particle Swarm Optimization', calculate_metrics(y_test, HistGradientBoostingRegressor(
-        learning_rate=swarm.best_pos[0],
-        max_iter=int(swarm.best_pos[1]),
-        max_leaf_nodes=int(swarm.best_pos[2]),
-        max_depth=int(swarm.best_pos[3]),
-        min_samples_leaf=int(swarm.best_pos[4]),
-        l2_regularization=swarm.best_pos[5],
+
+    best_params = {
+        'learning_rate': swarm.best_pos[0],
+        'max_iter': int(swarm.best_pos[1]),
+        'max_leaf_nodes': int(swarm.best_pos[2]),
+        'max_depth': int(swarm.best_pos[3]),
+        'min_samples_leaf': int(swarm.best_pos[4]),
+        'l2_regularization': swarm.best_pos[5]
+    }
+
+    model = HistGradientBoostingRegressor(
+        learning_rate=best_params['learning_rate'],
+        max_iter=best_params['max_iter'],
+        max_leaf_nodes=best_params['max_leaf_nodes'],
+        max_depth=best_params['max_depth'],
+        min_samples_leaf=best_params['min_samples_leaf'],
+        l2_regularization=best_params['l2_regularization'],
         random_state=42
-    ).predict(X_test)), completion_time)
+    )
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
 
+    metrics = calculate_metrics(y_test, y_pred)
+    append_metrics_to_csv('Hgbrt_PSO', metrics, completion_time)
+    append_best_params_to_csv('Hgbrt_PSO', best_params)
 
-particle_swarm_optimization()
+    print(f"MSE: {metrics[0]}")
+    print(f"RMSE: {metrics[1]}")
+    print(f"MAE: {metrics[2]}")
+    print(f"R2: {metrics[3]}")
+    print(f"MAPE: {metrics[4]}")
+
+if __name__ == "__main__":
+    particle_swarm_optimization()

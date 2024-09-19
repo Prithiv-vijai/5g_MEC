@@ -10,7 +10,7 @@ hgbrt_df = metrics_df[metrics_df['Model Name'].str.startswith(('Hgbrt'))]
 
 # Define metrics to compare, excluding 'Adjusted R2'
 metrics = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
-additional_metric = 'CT'
+additional_metric = 'Completion_Time'
 
 # Custom y-limits for each metric
 y_limits = {
@@ -19,7 +19,7 @@ y_limits = {
     'MAE': (0.4, 1.2),
     'R2': (0.95, 1),
     'MAPE': (0, 0.015),
-    'CT': (0, hgbrt_df['CT'].max() * 1.1)  # Adjust based on actual data
+    'Completion_Time': (0, hgbrt_df['Completion_Time'].max() * 1.1)  # Adjust based on actual data
 }
 
 # Initialize the plot
