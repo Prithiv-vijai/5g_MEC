@@ -44,7 +44,7 @@ def fitness_function(genome: Genome, model: HistGradientBoostingRegressor, X_tra
     }
     
     model.set_params(**params)
-    scores = cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error')
+    scores = cross_val_score(model, X_train, y_train, cv=3, scoring='neg_mean_squared_error')
     return -np.mean(scores)  # Return NMSE (lower is better)
 
 # Sort population based on fitness (lower is better for NMSE)
@@ -68,6 +68,7 @@ def run_evolution(
     start_time = time.time()  # Track the start time
     
     for generation in range(generation_limit):
+        print(f"Generation {generation + 1}/{generation_limit}")
         # Sort the population based on fitness
         population = sort_population(population, fitness_func, model, X_train, y_train)
         

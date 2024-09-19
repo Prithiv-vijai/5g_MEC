@@ -176,6 +176,7 @@ def particle_swarm_optimization():
 
         plt.subplots_adjust(right=0.95)
         plt.pause(0.00001)
+        print(f"Iteration {curr_iter + 1}/{MAX_ITER}: Best Cost = {swarm.best_pos_z}")
 
         # Check for convergence
         if abs(swarm.best_pos_z - GLOBAL_BEST) < CONVERGENCE:
