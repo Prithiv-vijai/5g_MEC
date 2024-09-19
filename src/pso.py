@@ -200,6 +200,5 @@ def particle_swarm_optimization():
         random_state=42
     ).predict(X_test)), completion_time)
 
-    plt.show()
 
 particle_swarm_optimization()
