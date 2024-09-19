@@ -1,13 +1,13 @@
 import pandas as pd
 import numpy as np
-import random
+import time
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error, mean_absolute_error
 import os
 
 # Load the dataset from a CSV file
-data = pd.read_csv("../data/augmented_datasett.csv")
+data = pd.read_csv("../data/augmented_dataset.csv")
 
 # Define features and target
 X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
@@ -26,8 +26,8 @@ def calculate_metrics(y_test, y_pred):
     return mse, rmse, mae, r2, mape
 
 # Function to append metrics to CSV
-def append_metrics_to_csv(model_name, metrics, model_category='Boosting Models'):
-    column_order = ['Model Name', 'Model Category', 'MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
+def append_metrics_to_csv(model_name, metrics, completion_time, model_category='Boosting Models'):
+    column_order = ['Model Name', 'Model Category', 'MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Completion Time (s)']
     metrics_dict = {
         'Model Name': [model_name],
         'Model Category': [model_category],
@@ -36,6 +36,7 @@ def append_metrics_to_csv(model_name, metrics, model_category='Boosting Models')
         'MAE': [metrics[2]],
         'R2': [metrics[3]],
         'MAPE': [metrics[4]],
+        'Completion Time (s)': [completion_time]
     }
     df_metrics = pd.DataFrame(metrics_dict)
     file_path = "../data/model_performance_metrics.csv"
@@ -76,63 +77,62 @@ def array_to_dict(agent):
         'l2_regularization': agent[5]
     }
 
-# Objective function to calculate Negative MSE (NMSE)
-def objective_function(params, model, X_train, y_train):
-    model.set_params(**params)
-    scores = cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error')
-    return -np.mean(scores)  # Negative MSE for minimization
-
 # Slime Mould Algorithm (SMA)
 def initialize_population(n_agents, dim, bounds):
-    population = np.random.uniform(bounds[:, 0], bounds[:, 1], size=(n_agents, dim))
+    population = np.random.rand(n_agents, dim) * (bounds[:, 1] - bounds[:, 0]) + bounds[:, 0]
     return population
 
-def slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=50, max_iter=100):
+def fitness_function(model, X_train, y_train, X_test, y_test, params):
+    model.set_params(**params)
+    scores = cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error')
+    return -np.mean(scores)
+
+def slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=30, max_iter=100):
     dim = bounds.shape[0]
-    positions = initialize_population(n_agents, dim, bounds)
+    population = initialize_population(n_agents, dim, bounds)
     fitness = np.zeros(n_agents)
     best_agent = None
     best_fitness = float('inf')
-    w = 0.9
-    z = 0.1
-    vb = 0
 
-    for i in range(max_iter):
-        # Calculate fitness for each agent
+    for agent in range(n_agents):
+        params = array_to_dict(population[agent])
+        fitness[agent] = fitness_function(model, X_train, y_train, X_test, y_test, params)
+        
+        if fitness[agent] < best_fitness:
+            best_fitness = fitness[agent]
+            best_agent = population[agent].copy()
+
+    for t in range(max_iter):
         for agent in range(n_agents):
-            params = array_to_dict(positions[agent])
-            fitness[agent] = objective_function(params, model, X_train, y_train)
+            population[agent] = update_position(population[agent], best_agent, fitness, t, max_iter, bounds)
+            params = array_to_dict(population[agent])
+            fitness[agent] = fitness_function(model, X_train, y_train, X_test, y_test, params)
+            
             if fitness[agent] < best_fitness:
                 best_fitness = fitness[agent]
-                best_agent = positions[agent].copy()
-
-        # Sort agents by fitness
-        sorted_indices = np.argsort(fitness)
-        positions = positions[sorted_indices]
-
-        # Update positions
-        w *= np.exp(-i / max_iter)
-        for j in range(n_agents):
-            if random.random() < w:
-                best_pos = positions[0]
-                positions[j] += np.random.rand() * (best_pos - positions[j])
-            else:
-                random_index = random.randint(0, n_agents - 1)
-                random_pos = positions[random_index]
-                positions[j] += z * np.random.rand() * (random_pos - positions[j])
-            
-            # Add random noise based on velocity
-            positions[j] += vb * np.random.randn(dim)
-            # Ensure the new position is within bounds
-            positions[j] = np.clip(positions[j], bounds[:, 0], bounds[:, 1])
-
+                best_agent = population[agent].copy()
+        
     return best_agent, best_fitness
+
+def update_position(agent, best_agent, fitness, t, max_iter, bounds):
+    b = 1 - t / max_iter
+    d = 2 * (np.random.rand() - 0.5)
+    new_agent = agent + d * b * (best_agent - agent)
+
+    new_agent = np.clip(new_agent, bounds[:, 0], bounds[:, 1])
+    return new_agent
 
 # Define the HGBRT model
 model = HistGradientBoostingRegressor(random_state=42)
 
+# Record the start time of SMA optimization
+start_time = time.time()
+
 # Run the SMA optimization
-best_agent, best_fitness = slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=100, max_iter=200)
+best_agent, best_fitness = slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=50, max_iter=100)
+
+# Calculate completion time for SMA optimization
+sma_completion_time = time.time() - start_time
 
 # Use the best parameters found by SMA to train the final model
 best_params = array_to_dict(best_agent)
@@ -143,8 +143,9 @@ model.fit(X_train, y_train)
 y_pred_sma = model.predict(X_test)
 metrics_sma = calculate_metrics(y_test, y_pred_sma)
 
-# Append SMA results to CSV
-append_metrics_to_csv('Hgbrt_sma_new', metrics_sma)
+# Append SMA results with completion time to CSV
+append_metrics_to_csv('Hgbrt_Sma', metrics_sma, sma_completion_time)
 
 # Append the best parameters to CSV
-append_best_params_to_csv('Hgbrt_sma_new', best_params)
+append_best_params_to_csv('Hgbrt_Sma', best_params)
+
