@@ -170,7 +170,7 @@ if __name__ == "__main__":
         y_train=y_train.values,
         fitness_func=fitness_function,
         fitness_limit=0.01,  # Desired fitness level (NMSE)
-        generation_limit=50
+        generation_limit=10
     )
 
     # Set the best found parameters to the model
