@@ -71,10 +71,10 @@ if additional_metric in hgbrt_df.columns:
     if additional_metric in y_limits:
         ax.set_ylim(y_limits[additional_metric])
     
-    # Add values on bars with 4 decimal places
+    # Add values on bars without decimal places
     for bar in bars:
         yval = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2, yval, f'{yval:.4f}', va='bottom', ha='center')
+        ax.text(bar.get_x() + bar.get_width()/2, yval, f'{int(yval)}', va='bottom', ha='center')
 
 # Adjust layout to avoid overlap
 plt.tight_layout(rect=[0, 0, 1, 0.95])
