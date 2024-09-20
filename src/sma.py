@@ -87,7 +87,7 @@ def fitness_function(model, X_train, y_train, X_test, y_test, params):
     scores = cross_val_score(model, X_train, y_train, cv=3, scoring='neg_mean_squared_error')
     return -np.mean(scores)
 
-def slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=30, max_iter=100):
+def slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=50, max_iter=200):
     dim = bounds.shape[0]
     population = initialize_population(n_agents, dim, bounds)
     fitness = np.zeros(n_agents)
