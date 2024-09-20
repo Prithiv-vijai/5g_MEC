@@ -194,12 +194,12 @@ if __name__ == "__main__":
 
     # Append the metrics and best parameters to the CSV files
     append_metrics_to_csv(
-        model_name="HistGradientBoostingRegressor",
+        model_name="Hgbrt_GA",
         metrics=test_metrics,
         completion_time=completion_time
     )
     append_best_params_to_csv(
-        model_name="HistGradientBoostingRegressor",
+        model_name="Hgbrt_GA",
         best_params=best_params,
         completion_time=completion_time
     )
