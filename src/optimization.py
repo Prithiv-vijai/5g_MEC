@@ -148,12 +148,12 @@ def objective(params):
 
 # Define the hyperparameter search space
 space = {
-    'learning_rate': hp.uniform('learning_rate', 0.01, 0.1),
-    'max_iter': hp.quniform('max_iter', 100, 300, 1),
-    'max_leaf_nodes': hp.quniform('max_leaf_nodes', 10, 100, 1),
-    'max_depth': hp.quniform('max_depth', 5, 30, 1),
-    'min_samples_leaf': hp.quniform('min_samples_leaf', 1, 20, 1),
-    'l2_regularization': hp.uniform('l2_regularization', 0.0, 10.0)
+    'learning_rate': hp.uniform('learning_rate', 0.001, 0.5),
+    'max_iter': hp.quniform('max_iter', 100, 500, 1),
+    'max_leaf_nodes': hp.quniform('max_leaf_nodes', 20, 100, 1),
+    'max_depth': hp.quniform('max_depth', 5, 25, 1),
+    'min_samples_leaf': hp.quniform('min_samples_leaf', 10, 50, 1),
+    'l2_regularization': hp.uniform('l2_regularization', 0, 2)
 }
 
 # Initialize trials object
