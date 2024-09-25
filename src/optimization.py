@@ -211,7 +211,7 @@ param_grid_random = {
     'max_leaf_nodes': [20, 31, 50, 70, 100],
     'max_depth': [5, 10, 15, 20, 25],
     'min_samples_leaf': [10, 20, 30, 40, 50],
-    'l2_regularization': [0, 0.1, 0.5, 1, 2]
+    'l2_regularization': [0, 0.1, 0.5, 0.8, 1]
 }
 
 random_search = RandomizedSearchCV(model, param_distributions=param_grid_random, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
