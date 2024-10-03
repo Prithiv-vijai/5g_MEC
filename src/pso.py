@@ -16,8 +16,8 @@ V_MAX = 0.1                 # Maximum velocity value
 PERSONAL_C = 2.0            # Personal coefficient factor
 SOCIAL_C = 2.0              # Social coefficient factor
 CONVERGENCE = 0.001         # Convergence threshold
-MAX_ITER = 10               # Maximum number of iterations
-NO_IMPROVEMENT_LIMIT = 3    # Number of iterations with no improvement to stop early
+MAX_ITER = 50               # Maximum number of iterations
+NO_IMPROVEMENT_LIMIT = 5    # Number of iterations with no improvement to stop early
 
 # Load the dataset
 data = pd.read_csv("../data/augmented_dataset.csv")

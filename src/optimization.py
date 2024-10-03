@@ -143,33 +143,6 @@ completion_time_bayes = time.time() - start_time
 append_metrics_to_csv('Hgbrt_BO_GP', metrics_bayes, completion_time_bayes)
 append_best_params_to_csv('Hgbrt_BO_GP', bayes_search.best_params_)
 
-# Optuna - Hyperband Optimization (Using correct HyperbandPruner)
-start_time = time.time()
-def objective(trial):
-    model = HistGradientBoostingRegressor(
-        learning_rate=trial.suggest_loguniform('learning_rate', 0.001, 0.5),
-        max_iter=trial.suggest_int('max_iter', 100, 500),
-        max_leaf_nodes=trial.suggest_int('max_leaf_nodes', 20, 100),
-        max_depth=trial.suggest_int('max_depth', 5, 25),
-        min_samples_leaf=trial.suggest_int('min_samples_leaf', 10, 50),
-        l2_regularization=trial.suggest_uniform('l2_regularization', 0, 2),
-        random_state=10
-    )
-    return -cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error').mean()
-
-study = optuna.create_study(direction='minimize', sampler=TPESampler(seed=42), pruner=HyperbandPruner())
-study.optimize(objective, n_trials=50)
-
-best_params_hyperband = study.best_params
-model_hyperband = HistGradientBoostingRegressor(**best_params_hyperband, random_state=10)
-model_hyperband.fit(X_train, y_train)
-
-y_pred_hyperband = model_hyperband.predict(X_test)
-metrics_hyperband = calculate_metrics(y_test, y_pred_hyperband)
-
-completion_time_hyperband = time.time() - start_time
-append_metrics_to_csv('Hgbrt_BO_HB', metrics_hyperband, completion_time_hyperband)
-append_best_params_to_csv('Hgbrt_BO_HB', best_params_hyperband)
 
 # Bayesian Optimization with TPE (Hyperopt)
 start_time = time.time()
@@ -206,4 +179,31 @@ completion_time_tpe = time.time() - start_time
 append_metrics_to_csv('Hgbrt_BO_TPE', metrics_tpe, completion_time_tpe)
 append_best_params_to_csv('Hgbrt_BO_TPE', best_params_tpe)
 
+# Optuna - Hyperband Optimization (Using correct HyperbandPruner)
+start_time = time.time()
+def objective(trial):
+    model = HistGradientBoostingRegressor(
+        learning_rate=trial.suggest_loguniform('learning_rate', 0.001, 0.5),
+        max_iter=trial.suggest_int('max_iter', 100, 500),
+        max_leaf_nodes=trial.suggest_int('max_leaf_nodes', 20, 100),
+        max_depth=trial.suggest_int('max_depth', 5, 25),
+        min_samples_leaf=trial.suggest_int('min_samples_leaf', 10, 50),
+        l2_regularization=trial.suggest_uniform('l2_regularization', 0, 2),
+        random_state=10
+    )
+    return -cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error').mean()
+
+study = optuna.create_study(direction='minimize', sampler=TPESampler(seed=42), pruner=HyperbandPruner())
+study.optimize(objective, n_trials=50)
+
+best_params_hyperband = study.best_params
+model_hyperband = HistGradientBoostingRegressor(**best_params_hyperband, random_state=10)
+model_hyperband.fit(X_train, y_train)
+
+y_pred_hyperband = model_hyperband.predict(X_test)
+metrics_hyperband = calculate_metrics(y_test, y_pred_hyperband)
+
+completion_time_hyperband = time.time() - start_time
+append_metrics_to_csv('Hgbrt_BO_HB', metrics_hyperband, completion_time_hyperband)
+append_best_params_to_csv('Hgbrt_BO_HB', best_params_hyperband)
 
