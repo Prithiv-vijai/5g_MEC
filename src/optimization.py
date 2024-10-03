@@ -77,6 +77,49 @@ def append_best_params_to_csv(model_name, best_params):
         df_params.to_csv(file_path, mode='w', header=True, index=False)
     else:
         df_params.to_csv(file_path, mode='a', header=False, index=False)
+        
+        
+# Grid Search
+start_time = time.time()  # Start time
+param_grid = {
+    'learning_rate': [0.01, 0.1, 0.2],
+    'max_iter': [100, 200],
+    'max_leaf_nodes': [20, 31],
+    'max_depth': [None, 10, 20],
+    'min_samples_leaf': [20, 30],
+    'l2_regularization': [0, 0.1, 0.5]
+}
+
+grid_search = GridSearchCV(model, param_grid=param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
+grid_search.fit(X_train, y_train)
+
+y_pred_grid = grid_search.best_estimator_.predict(X_test)
+metrics_grid = calculate_metrics(y_test, y_pred_grid)
+
+completion_time_grid = time.time() - start_time  # End time
+append_metrics_to_csv('Hgbrt_Grid', metrics_grid, completion_time_grid)
+append_best_params_to_csv('Hgbrt_Grid', grid_search.best_params_)
+
+# Random Search
+start_time = time.time()  # Start time
+param_grid_random = {
+    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2, 0.5],
+    'max_iter': [100, 200, 300, 400, 500],
+    'max_leaf_nodes': [20, 31, 50, 70, 100],
+    'max_depth': [5, 10, 15, 20, 25],
+    'min_samples_leaf': [10, 20, 30, 40, 50],
+    'l2_regularization': [0, 0.1, 0.5, 0.8, 1]
+}
+
+random_search = RandomizedSearchCV(model, param_distributions=param_grid_random, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
+random_search.fit(X_train, y_train)
+
+y_pred_random = random_search.best_estimator_.predict(X_test)
+metrics_random = calculate_metrics(y_test, y_pred_random)
+
+completion_time_random = time.time() - start_time  # End time
+append_metrics_to_csv('Hgbrt_Random', metrics_random, completion_time_random)
+append_best_params_to_csv('Hgbrt_Random', random_search.best_params_)
 
 # Bayesian Optimization (Bayesian Optimization with Gaussian Process)
 start_time = time.time()
@@ -164,44 +207,3 @@ append_metrics_to_csv('Hgbrt_BO_TPE', metrics_tpe, completion_time_tpe)
 append_best_params_to_csv('Hgbrt_BO_TPE', best_params_tpe)
 
 
-# Grid Search
-start_time = time.time()  # Start time
-param_grid = {
-    'learning_rate': [0.01, 0.1, 0.2],
-    'max_iter': [100, 200],
-    'max_leaf_nodes': [20, 31],
-    'max_depth': [None, 10, 20],
-    'min_samples_leaf': [20, 30],
-    'l2_regularization': [0, 0.1, 0.5]
-}
-
-grid_search = GridSearchCV(model, param_grid=param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
-grid_search.fit(X_train, y_train)
-
-y_pred_grid = grid_search.best_estimator_.predict(X_test)
-metrics_grid = calculate_metrics(y_test, y_pred_grid)
-
-completion_time_grid = time.time() - start_time  # End time
-append_metrics_to_csv('Hgbrt_Grid', metrics_grid, completion_time_grid)
-append_best_params_to_csv('Hgbrt_Grid', grid_search.best_params_)
-
-# Random Search
-start_time = time.time()  # Start time
-param_grid_random = {
-    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2, 0.5],
-    'max_iter': [100, 200, 300, 400, 500],
-    'max_leaf_nodes': [20, 31, 50, 70, 100],
-    'max_depth': [5, 10, 15, 20, 25],
-    'min_samples_leaf': [10, 20, 30, 40, 50],
-    'l2_regularization': [0, 0.1, 0.5, 0.8, 1]
-}
-
-random_search = RandomizedSearchCV(model, param_distributions=param_grid_random, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
-random_search.fit(X_train, y_train)
-
-y_pred_random = random_search.best_estimator_.predict(X_test)
-metrics_random = calculate_metrics(y_test, y_pred_random)
-
-completion_time_random = time.time() - start_time  # End time
-append_metrics_to_csv('Hgbrt_Random', metrics_random, completion_time_random)
-append_best_params_to_csv('Hgbrt_Random', random_search.best_params_)

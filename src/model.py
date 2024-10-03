@@ -15,7 +15,6 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, m
 
 # Additional libraries for the new models
 import xgboost as xgb
-import lightgbm as lgb
 from sklearn.ensemble import HistGradientBoostingRegressor
 
 # Create the directory if it doesn't exist
