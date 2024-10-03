@@ -50,26 +50,18 @@ combined_data = augmented_random
 
 # Filter out rows based on the specified conditions
 filtered_data = combined_data[
-    (combined_data['Required_Bandwidth'] >= 0) & 
-    (combined_data['Allocated_Bandwidth'] >= 0) 
+    (combined_data['Required_Bandwidth'] >= 1) & 
+    (combined_data['Allocated_Bandwidth'] >= 1) 
 ]
 
-# Equalize the number of rows for each application type after filtering
-final_data = pd.DataFrame()
-min_rows_per_app = filtered_data['Application_Type'].value_counts().min()
-
-for app_type in filtered_data['Application_Type'].unique():
-    app_data = filtered_data[filtered_data['Application_Type'] == app_type]
-    final_data = pd.concat([final_data, app_data.sample(min_rows_per_app)], ignore_index=True)
-
 # Calculate and print correlation similarity scores
-score_random = correlation_similarity_score(df.drop(columns=['User_ID']), final_data.drop(columns=['User_ID']))
+score_random = correlation_similarity_score(df.drop(columns=['User_ID']), filtered_data.drop(columns=['User_ID']))
 print(f"Correlation Similarity Score - Random Sampling with Noise: {score_random}")
 
 # Print the number of rows in the final dataset
-print(f"Number of rows in the final dataset: {len(final_data)}")
+print(f"Number of rows in the final dataset: {len(filtered_data)}")
 
 # Save the filtered combined dataset
-final_data.to_csv('../data/augmented_dataset.csv', index=False)
+filtered_data.to_csv('../data/augmented_dataset.csv', index=False)
 
 print("Filtered and augmented dataset saved to the specified path.")
