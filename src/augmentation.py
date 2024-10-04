@@ -11,7 +11,11 @@ def correlation_similarity_score(original, augmented):
 df = pd.read_csv('../data/preprocessed_dataset.csv')
 
 # Method for augmenting numerical features with random sampling and noise
-def random_sampling_with_noise(data, target_size):
+def random_sampling_with_noise(data, target_size, random_state=None):
+    # Set random seed for reproducibility
+    if random_state is not None:
+        np.random.seed(random_state)
+
     # Separate numerical and categorical columns
     numerical_features = data.select_dtypes(include=[np.number]).columns
     # Keep Application_Type as it is
@@ -26,10 +30,10 @@ def random_sampling_with_noise(data, target_size):
     # Sample data for each application type
     for app_type in unique_applications:
         app_data = data[data['Application_Type'] == app_type]
-        sampled_data = app_data.sample(rows_per_application, replace=True).reset_index(drop=True)
+        sampled_data = app_data.sample(rows_per_application, replace=True, random_state=random_state).reset_index(drop=True)
         
         # Add noise to numerical features only
-        noise = np.random.normal(1, 0.8, sampled_data[numerical_features].shape)
+        noise = np.random.normal(0, 1, sampled_data[numerical_features].shape)
         noisy_data = sampled_data[numerical_features] + noise
         
         # Concatenate the noisy data for the current application type
@@ -41,17 +45,20 @@ def random_sampling_with_noise(data, target_size):
     
     return augmented_data
 
+# Set a random seed for reproducibility
+random_seed = 43
+
 # Augment data using random sampling with noise
 target_size = 16000
-augmented_random = random_sampling_with_noise(df, target_size)
+augmented_random = random_sampling_with_noise(df, target_size, random_state=random_seed)
 
 # Append the existing data to the augmented data
 combined_data = augmented_random
 
 # Filter out rows based on the specified conditions
 filtered_data = combined_data[
-    (combined_data['Required_Bandwidth'] >= 1) & 
-    (combined_data['Allocated_Bandwidth'] >= 1) 
+    (combined_data['Required_Bandwidth'] >= 0) & 
+    (combined_data['Allocated_Bandwidth'] >= 0) 
 ]
 
 # Calculate and print correlation similarity scores

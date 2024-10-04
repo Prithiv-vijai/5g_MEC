@@ -22,7 +22,7 @@ output_dir = '../graphs/model_output/'
 os.makedirs(output_dir, exist_ok=True)
 
 # Load the dataset from a CSV file
-df = pd.read_csv('../data/augmented_datasett.csv')
+df = pd.read_csv('../data/augmented_dataset.csv')
 
 # Define features (X) and target (y)
 X = df[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]

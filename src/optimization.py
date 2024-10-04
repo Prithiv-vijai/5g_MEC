@@ -79,6 +79,8 @@ def append_best_params_to_csv(model_name, best_params):
         df_params.to_csv(file_path, mode='a', header=False, index=False)
         
         
+model = HistGradientBoostingRegressor(random_state=10)
+
 # Grid Search
 start_time = time.time()  # Start time
 param_grid = {
@@ -132,7 +134,7 @@ search_space = {
     'l2_regularization': Real(0, 2, prior='uniform')
 }
 
-model = HistGradientBoostingRegressor(random_state=10)
+
 bayes_search = BayesSearchCV(model, search_space, n_iter=50, cv=5, scoring='neg_mean_squared_error', random_state=42)
 bayes_search.fit(X_train, y_train)
 
