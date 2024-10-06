@@ -17,7 +17,11 @@ PERSONAL_C = 2.0            # Personal coefficient factor
 SOCIAL_C = 2.0              # Social coefficient factor
 CONVERGENCE = 0.001         # Convergence threshold
 MAX_ITER = 50               # Maximum number of iterations
-NO_IMPROVEMENT_LIMIT = 5    # Number of iterations with no improvement to stop early
+
+RANDOM_SEED = 42            # Seed for reproducibility
+
+# Set random seed for NumPy
+np.random.seed(RANDOM_SEED)
 
 # Load the dataset
 data = pd.read_csv("../data/augmented_dataset.csv")
@@ -27,7 +31,7 @@ X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth'
 y = data['Resource_Allocation']
 
 # Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
 # Function to calculate metrics
 def calculate_metrics(y_test, y_pred):
@@ -117,7 +121,7 @@ class Swarm:
             max_depth=int(params[3]),
             min_samples_leaf=int(params[4]),
             l2_regularization=params[5],
-            random_state=42
+            random_state=RANDOM_SEED  # Ensuring reproducibility for the model as well
         )
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
@@ -131,8 +135,6 @@ def particle_swarm_optimization():
 
     curr_iter = 0
     start_time = time.time()  
-    no_improvement_counter = 0
-    previous_best_cost = swarm.best_pos_z
 
     while curr_iter < MAX_ITER:
         for particle in swarm.particles:
@@ -164,15 +166,6 @@ def particle_swarm_optimization():
 
         print(f"Iteration {curr_iter + 1}/{MAX_ITER}: Best Cost = {swarm.best_pos_z}")
 
-        if abs(previous_best_cost - swarm.best_pos_z) < CONVERGENCE:
-            no_improvement_counter += 1
-            if no_improvement_counter >= NO_IMPROVEMENT_LIMIT:
-                print(f"No significant improvement for {NO_IMPROVEMENT_LIMIT} consecutive iterations. Stopping early.")
-                break
-        else:
-            no_improvement_counter = 0
-            previous_best_cost = swarm.best_pos_z
-
         curr_iter += 1
 
     end_time = time.time()  
@@ -197,7 +190,7 @@ def particle_swarm_optimization():
         max_depth=best_params['max_depth'],
         min_samples_leaf=best_params['min_samples_leaf'],
         l2_regularization=best_params['l2_regularization'],
-        random_state=42
+        random_state=RANDOM_SEED  # Ensuring reproducibility for the final model
     )
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)

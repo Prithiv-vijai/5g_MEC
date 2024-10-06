@@ -113,7 +113,7 @@ param_grid_random = {
     'l2_regularization': [0, 0.1, 0.5, 0.8, 1]
 }
 
-random_search = RandomizedSearchCV(model, param_distributions=param_grid_random, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
+random_search = RandomizedSearchCV(model, param_distributions=param_grid_random, n_iter=100, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1,random_state=44)
 random_search.fit(X_train, y_train)
 
 y_pred_random = random_search.best_estimator_.predict(X_test)
@@ -135,7 +135,7 @@ search_space = {
 }
 
 
-bayes_search = BayesSearchCV(model, search_space, n_iter=50, cv=5, scoring='neg_mean_squared_error', random_state=42)
+bayes_search = BayesSearchCV(model, search_space, n_iter=100, cv=5, scoring='neg_mean_squared_error', random_state=44)
 bayes_search.fit(X_train, y_train)
 
 y_pred_bayes = bayes_search.best_estimator_.predict(X_test)
@@ -167,7 +167,7 @@ space = {
 }
 
 trials = Trials()
-best_tpe = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=50, trials=trials, rstate=np.random.default_rng(43))
+best_tpe = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=100, trials=trials, rstate=np.random.default_rng(44))
 
 best_params_tpe = {k: int(v) if isinstance(v, float) and k in ['max_iter', 'max_leaf_nodes', 'max_depth', 'min_samples_leaf'] else v for k, v in best_tpe.items()}
 
@@ -185,18 +185,18 @@ append_best_params_to_csv('Hgbrt_BO_TPE', best_params_tpe)
 start_time = time.time()
 def objective(trial):
     model = HistGradientBoostingRegressor(
-        learning_rate=trial.suggest_loguniform('learning_rate', 0.001, 0.5),
+        learning_rate=trial.suggest_float('learning_rate', 0.001, 0.5),
         max_iter=trial.suggest_int('max_iter', 100, 500),
         max_leaf_nodes=trial.suggest_int('max_leaf_nodes', 20, 100),
         max_depth=trial.suggest_int('max_depth', 5, 25),
         min_samples_leaf=trial.suggest_int('min_samples_leaf', 10, 50),
-        l2_regularization=trial.suggest_uniform('l2_regularization', 0, 2),
+        l2_regularization=trial.suggest_float('l2_regularization', 0, 2),
         random_state=10
     )
     return -cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error').mean()
 
-study = optuna.create_study(direction='minimize', sampler=TPESampler(seed=42), pruner=HyperbandPruner())
-study.optimize(objective, n_trials=50)
+study = optuna.create_study(direction='minimize', sampler=TPESampler(seed=44), pruner=HyperbandPruner())
+study.optimize(objective, n_trials=100)
 
 best_params_hyperband = study.best_params
 model_hyperband = HistGradientBoostingRegressor(**best_params_hyperband, random_state=10)

@@ -12,6 +12,7 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
+import time  # Import time module for tracking completion time
 
 # Additional libraries for the new models
 import xgboost as xgb
@@ -62,8 +63,10 @@ predictions = {}
 # Train and evaluate each model
 for group_name, models in model_groups.items():
     for name, model in models.items():
+        start_time = time.time()  # Start time for the model training
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
+        completion_time = time.time() - start_time  # Calculate completion time
 
         mse = mean_squared_error(y_test, y_pred)
         rmse = np.sqrt(mse)
@@ -71,13 +74,16 @@ for group_name, models in model_groups.items():
         r2 = r2_score(y_test, y_pred)
         mape = mean_absolute_percentage_error(y_test, y_pred)
 
-        results[(group_name, name)] = {'Model Name': name,
-                                       'Model Category': group_name,
-                                       'MSE': mse,
-                                       'RMSE': rmse,
-                                       'MAE': mae,
-                                       'R2': r2,
-                                       'MAPE': mape}
+        results[(group_name, name)] = {
+            'Model Name': name,
+            'Model Category': group_name,
+            'MSE': mse,
+            'RMSE': rmse,
+            'MAE': mae,
+            'R2': r2,
+            'MAPE': mape,
+            'Completion_Time': completion_time  # Add completion time
+        }
         predictions[(group_name, name)] = y_pred
 
 # Convert results to a DataFrame
@@ -87,7 +93,7 @@ results_df = pd.DataFrame(results).T.reset_index(drop=True)
 results_df.to_csv('../data/model_performance_metrics.csv', index=False)
 
 # Define metrics to plot, excluding 'Adjusted R2'
-metrics_to_plot = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
+metrics_to_plot = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Completion_Time']  # Include 'Completion_Time' for plotting
 
 # Function to add rank labels
 def add_rank_labels(ax, data, metric):
@@ -178,19 +184,8 @@ for group_name, models in model_groups.items():
     top_models[group_name] = best_model
 
 # Generate a DataFrame for top-ranked models
-top_models_df = []
-for group_name, model_name in top_models.items():
-    metrics = results[(group_name, model_name)]
-    top_models_df.append({
-        'Model': model_name,
-        'Group': group_name,
-        'MSE': metrics['MSE'],
-        'RMSE': metrics['RMSE'],
-        'MAE': metrics['MAE'],
-        'R2': metrics['R2'],
-        'MAPE': metrics['MAPE']
-    })
+top_models_df = pd.DataFrame.from_dict(top_models, orient='index', columns=['Best_Model']).reset_index()
+top_models_df.rename(columns={'index': 'Model_Category'}, inplace=True)
 
-top_models_df = pd.DataFrame(top_models_df)
-print("\nTop Models for Each Category:")
+print("\nTop Ranked Models:")
 print(top_models_df)

@@ -46,7 +46,7 @@ def random_sampling_with_noise(data, target_size, random_state=None):
     return augmented_data
 
 # Set a random seed for reproducibility
-random_seed = 43
+random_seed = 3
 
 # Augment data using random sampling with noise
 target_size = 16000

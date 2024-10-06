@@ -14,13 +14,17 @@ additional_metric = 'Completion_Time'
 
 # Custom y-limits for each metric
 y_limits = {
-    'MSE': (0.6, 1.6),    # Adjust the limits based on your dataset
-    'RMSE': (0.6, 1.6),
-    'MAE': (0.4, 1.2),
-    'R2': (0.95, 1),
-    'MAPE': (0, 0.015),
+    'MSE': (1.2, 1.7),    # Adjust the limits based on your dataset
+    'RMSE': (1, 1.4),
+    'MAE': (0.8, 1.0),
+    'R2': (0.970, 0.985),
+    'MAPE': (0.010, 0.014),
     'Completion_Time': (0, hgbrt_df['Completion_Time'].max() * 1.1)  # Adjust based on actual data
 }
+
+# Color for all bars (mild blue) and top 3 (green mild)
+default_color = 'cornflowerblue'
+top3_color = 'mediumseagreen'
 
 # Initialize the plot
 fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(18, 10))
@@ -32,15 +36,21 @@ for idx, metric in enumerate(metrics):
     if metric in hgbrt_df.columns:
         ax = axes[idx]
         
-        # Determine the best value for each metric type
+        # Sort values and get indices of top 3 (best depending on the metric type)
         if metric in ['MSE', 'RMSE', 'MAE', 'MAPE']:
-            best_value = hgbrt_df[metric].min()
-            colors = ['green' if value == best_value else 'red' for value in hgbrt_df[metric]]
+            sorted_df = hgbrt_df.sort_values(by=metric, ascending=True)  # Lower is better
         else:  # For 'R2'
-            best_value = hgbrt_df[metric].max()
-            colors = ['green' if value == best_value else 'red' for value in hgbrt_df[metric]]
+            sorted_df = hgbrt_df.sort_values(by=metric, ascending=False)  # Higher is better
         
-        bars = ax.bar(hgbrt_df['Model Name'], hgbrt_df[metric], color=colors)
+        top3_indices = sorted_df.index[:3]
+        
+        # Assign colors for all bars, top 3 as green
+        colors = [
+            top3_color if idx in sorted_df.index[:3] else default_color
+            for idx in sorted_df.index
+        ]
+        
+        bars = ax.bar(sorted_df['Model Name'], sorted_df[metric], color=colors)
         ax.set_title(f'{metric} Comparison')
         ax.set_xlabel('Model Name')
         ax.set_ylabel(metric)
@@ -50,18 +60,16 @@ for idx, metric in enumerate(metrics):
         if metric in y_limits:
             ax.set_ylim(y_limits[metric])
 
-        # Add values on bars with 4 decimal places
+        # Add values inside the bars
         for bar in bars:
             yval = bar.get_height()
             ax.text(bar.get_x() + bar.get_width()/2, yval, f'{yval:.4f}', va='bottom', ha='center')
 
-# Plot 'Completion Time' as an extra subplot
+# Plot 'Completion Time' as an extra subplot (all blue)
 if additional_metric in hgbrt_df.columns:
     ax = axes[-1]  # The last subplot
-    best_value = hgbrt_df[additional_metric].min()
-    colors = ['green' if value == best_value else 'red' for value in hgbrt_df[additional_metric]]
-    
-    bars = ax.bar(hgbrt_df['Model Name'], hgbrt_df[additional_metric], color=colors)
+    sorted_df = hgbrt_df.sort_values(by=additional_metric, ascending=True)  # Lower is better for time
+    bars = ax.bar(sorted_df['Model Name'], sorted_df[additional_metric], color=default_color)  # All bars blue
     ax.set_title(f'{additional_metric} Comparison')
     ax.set_xlabel('Model Name')
     ax.set_ylabel('Completion Time (s)')  # Assuming time is in seconds
@@ -74,13 +82,13 @@ if additional_metric in hgbrt_df.columns:
     # Add values on bars without decimal places
     for bar in bars:
         yval = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2, yval, f'{int(yval)}', va='bottom', ha='center')
+        ax.text(bar.get_x() + bar.get_width()/2, yval, f'{yval:.2f}', va='bottom', ha='center')
 
 # Adjust layout to avoid overlap
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 
-# Print values and ranks with 4 decimal places
-print("HGBRT Models Ranking:")
+# Print values with 4 decimal places
+print("HGBRT Models Performance Metrics:")
 for index, row in hgbrt_df.iterrows():
     print(f"Model: {row['Model Name']}")
     for metric in metrics:
