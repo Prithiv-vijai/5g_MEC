@@ -5,11 +5,10 @@ import numpy as np
 # Load the data
 df = pd.read_csv('../data/model_best_params.csv')
 
-# Set BO_TPE as the best model (you can change this logic based on your criteria)
-best_model = 'Hgbrt_BO_TPE'
+
 
 # Define the color for each model, with BO_TPE highlighted
-colors = ['red' if model == best_model else 'blue' for model in df['Model Name']]
+colors = 'cornflowerblue'
 
 # Parameters to plot
 parameters = ['l2_regularization', 'learning_rate', 'max_depth', 'max_iter', 'max_leaf_nodes', 'min_samples_leaf']
@@ -24,8 +23,7 @@ for i, param in enumerate(parameters):
     # Plot the parameter values
     ax.bar(df['Model Name'], df[param], color=colors)
     
-    # Highlight the BO_TPE bar
-    ax.bar(df.loc[df['Model Name'] == best_model, 'Model Name'], df.loc[df['Model Name'] == best_model, param], color='green')
+
     
     ax.set_title(param)
     ax.set_xlabel('Model Name')

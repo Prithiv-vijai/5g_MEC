@@ -15,8 +15,8 @@
 To get started, clone this repository and navigate to the project directory.
 
 ```bash
-git clone <repository-url>
-cd <repository-directory>
+git clone https://github.com/Prithiv-vijai/5g_MEC.git
+cd 5g_MEC
 ```
 
 ### Optional Step: Set Up a Virtual Environment
@@ -25,7 +25,8 @@ It's recommended to create a virtual environment for this project to manage depe
 
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+source venv/bin/activate
+cd src  # On Windows use `venv\Scripts\activate`
 ```
 
 ### Install Requirements
