@@ -26,7 +26,6 @@ It's recommended to create a virtual environment for this project to manage depe
 ```bash
 python -m venv venv
 source venv/Scripts/activate 
-cd src  
 ```
 
 ### Install Requirements
@@ -41,48 +40,54 @@ pip install -r requirements.txt
 
 Follow these steps to run the project:
 
-1. **Preprocess the Dataset**
+1. **Move to Soruce directory**
+
+```bash
+   cd src
+   ```
+
+2. **Preprocess the Dataset**
    - Run `preprocess.py`, which takes `../data/dataset.csv` and preprocesses it, saving the result at `../data/preprocessed_dataset.csv`:
 
    ```bash
    python preprocess.py
    ```
 
-2. **Data Augmentation**
+3. **Data Augmentation**
    - Run `augmentation.py`, which takes `../data/preprocessed_dataset.csv` and stores the augmented dataset at `../data/augmented_dataset.csv`:
 
    ```bash
    python augmentation.py
    ```
 
-3. **Visualization**
+4. **Visualization**
    - Run `visualization.py`, which compares the original and augmented datasets and stores the results in `../graphs/visualization`:
 
    ```bash
    python visualization.py
    ```
 
-4. **Model Training**
+5. **Model Training**
    - Run `model.py`, which outputs results to `../graphs/model_output`:
 
    ```bash
    python model.py
    ```
 
-5. **Optimization**
+6. **Optimization**
    - Run `optimization.py`, which stores the results in `../data/modelperformance-metrics` and `../data/model_best_params.csv`:
 
    ```bash
    python optimization.py
    ```
 
-6. **Metaheuristic Searches**
+7. **Metaheuristic Searches**
    - Run the following scripts for different metaheuristic searches:
    - **Particle Swarm Optimization:**
    ```bash
    python pso.py
    ```
-   - **Simulated Annealing:**
+   - **Slime Mould Algorithm:**
    ```bash
    python sma.py
    ```
@@ -91,14 +96,14 @@ Follow these steps to run the project:
    python ga.py
    ```
 
-7. **Comparison of Results**
+8. **Comparison of Results**
    - Run `compare.py`, which outputs `hgbrt_all_searcher.png`:
 
    ```bash
    python compare.py
    ```
 
-8. **Hyperparameters**
+9. **Hyperparameters**
    - Run `params.py` to see what hyperparameters have been chosen by each method:
 
    ```bash
