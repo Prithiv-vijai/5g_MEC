@@ -40,7 +40,7 @@ pip install -r requirements.txt
 
 Follow these steps to run the project:
 
-1. **Move to Soruce directory**
+1. **Move to Source directory**
 
 ```bash
    cd src
