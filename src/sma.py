@@ -124,13 +124,13 @@ def update_position(agent, best_agent, fitness, t, max_iter, bounds):
     return new_agent
 
 # Define the HGBRT model
-model = HistGradientBoostingRegressor(random_state=42)
+model = HistGradientBoostingRegressor(random_state=10)
 
 # Record the start time of SMA optimization
 start_time = time.time()
 
 # Run the SMA optimization
-best_agent, best_fitness = slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=50, max_iter=50)
+best_agent, best_fitness = slime_mould_algorithm(model, X_train, y_train, X_test, y_test, bounds, n_agents=20, max_iter=50)
 
 # Calculate completion time for SMA optimization
 sma_completion_time = time.time() - start_time
