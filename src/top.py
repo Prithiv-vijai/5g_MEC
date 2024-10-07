@@ -22,14 +22,12 @@ def annotate_plot(ax, data, metric):
         annotation_height = row[metric] + (0.05 if metric != 'MAPE' else 0.01)
         # Annotate with values and rank
         ax.text(i, annotation_height, value, ha='center', va='bottom')
-        ax.text(i, row[metric] / 2, f'{row["Rank"]}', ha='center', va='center', color='white', fontsize=12, fontweight='bold')
         # Highlight the top model
         if row['Rank'] == 1:
-            bars[i].set_facecolor('red')
-            bars[i].set_edgecolor('black')
+            bars[i].set_facecolor('mediumseagreen')
             bars[i].set_linewidth(2)
         else:
-            bars[i].set_facecolor('deepskyblue')
+            bars[i].set_facecolor('#4c72b0')
 
 # Get top 5 models for each metric and add ranking
 top_models = pd.concat([

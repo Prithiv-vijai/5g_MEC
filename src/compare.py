@@ -23,7 +23,7 @@ y_limits = {
 }
 
 # Color for all bars (mild blue) and top 3 (green mild)
-default_color = 'cornflowerblue'
+default_color = '#4c72b0'
 top3_color = 'mediumseagreen'
 
 # Initialize the plot

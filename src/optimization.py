@@ -191,7 +191,7 @@ def objective(trial):
         max_depth=trial.suggest_int('max_depth', 5, 30),
         min_samples_leaf=trial.suggest_int('min_samples_leaf', 5, 50),
         l2_regularization=trial.suggest_float('l2_regularization', 0, 2),
-        random_state=10
+        random_state=40
     )
     return -cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error').mean()
 

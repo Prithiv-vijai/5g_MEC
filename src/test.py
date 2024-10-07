@@ -15,11 +15,13 @@ y = df['Resource_Allocation']
 # Split the dataset into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+
+seed=42
 # Define the models
 models = {
-    'Random Forest': RandomForestRegressor(random_state=42),
-    'XGBoost': xgb.XGBRegressor(random_state=42),
-    'HGBRT': HistGradientBoostingRegressor(random_state=42)
+    # 'Random Forest': RandomForestRegressor(random_state=seed),
+    # 'XGBoost': xgb.XGBRegressor(random_state=seed),
+    'HGBRT': HistGradientBoostingRegressor(random_state=seed)
 }
 
 # Dictionary to store the results
@@ -58,3 +60,5 @@ for metric in ['MSE', 'RMSE', 'MAE', 'R²', 'MAPE']:
     best_model = metrics_df[metric].idxmin() if metric != 'R²' else metrics_df[metric].idxmax()
     best_value = metrics_df[metric][best_model]
     print(f"Best {metric}: {best_model} with value {best_value:.4f}")
+    
+print("RANDOM STATE = ",seed)
