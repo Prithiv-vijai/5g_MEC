@@ -81,69 +81,69 @@ def append_best_params_to_csv(model_name, best_params):
         
 model = HistGradientBoostingRegressor(random_state=40)
 
-# Grid Search
-start_time = time.time()  # Start time
-param_grid = {
-    'learning_rate': [0.01, 0.1, 0.2],
-    'max_iter': [100, 200 ,300],
-    'max_leaf_nodes': [20, 30, 40] ,
-    'max_depth': [None, 10, 20 ],
-    'min_samples_leaf': [10, 20],
-    'l2_regularization': [0, 0.1, 0.5]
-}
+# # Grid Search
+# start_time = time.time()  # Start time
+# param_grid = {
+#     'learning_rate': [0.01, 0.1, 0.2],
+#     'max_iter': [100, 200 ,300],
+#     'max_leaf_nodes': [20, 30, 40] ,
+#     'max_depth': [None, 10, 20 ],
+#     'min_samples_leaf': [10, 20],
+#     'l2_regularization': [0, 0.1, 0.5]
+# }
 
-grid_search = GridSearchCV(model, param_grid=param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
-grid_search.fit(X_train, y_train)
+# grid_search = GridSearchCV(model, param_grid=param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
+# grid_search.fit(X_train, y_train)
 
-y_pred_grid = grid_search.best_estimator_.predict(X_test)
-metrics_grid = calculate_metrics(y_test, y_pred_grid)
+# y_pred_grid = grid_search.best_estimator_.predict(X_test)
+# metrics_grid = calculate_metrics(y_test, y_pred_grid)
 
-completion_time_grid = time.time() - start_time  # End time
-append_metrics_to_csv('Hgbrt_Grid', metrics_grid, completion_time_grid)
-append_best_params_to_csv('Hgbrt_Grid', grid_search.best_params_)
+# completion_time_grid = time.time() - start_time  # End time
+# append_metrics_to_csv('Hgbrt_Grid', metrics_grid, completion_time_grid)
+# append_best_params_to_csv('Hgbrt_Grid', grid_search.best_params_)
 
-# Random Search
-start_time = time.time()  # Start time
-param_grid_random = {
-    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2, 0.5],
-    'max_iter': [100, 200, 300, 400, 500],
-    'max_leaf_nodes': [20, 31, 50, 70, 100],
-    'max_depth': [5, 10, 15, 20, 25],
-    'min_samples_leaf': [10, 20, 30, 40, 50],
-    'l2_regularization': [0, 0.1, 0.5, 0.8, 1]
-}
+# # Random Search
+# start_time = time.time()  # Start time
+# param_grid_random = {
+#     'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2, 0.5],
+#     'max_iter': [100, 200, 300, 400, 500],
+#     'max_leaf_nodes': [20, 31, 50, 70, 100],
+#     'max_depth': [5, 10, 15, 20, 25],
+#     'min_samples_leaf': [10, 20, 30, 40, 50],
+#     'l2_regularization': [0, 0.1, 0.5, 0.8, 1]
+# }
 
-random_search = RandomizedSearchCV(model, param_distributions=param_grid_random, n_iter=100, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1,random_state=44)
-random_search.fit(X_train, y_train)
+# random_search = RandomizedSearchCV(model, param_distributions=param_grid_random, n_iter=100, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1,random_state=44)
+# random_search.fit(X_train, y_train)
 
-y_pred_random = random_search.best_estimator_.predict(X_test)
-metrics_random = calculate_metrics(y_test, y_pred_random)
+# y_pred_random = random_search.best_estimator_.predict(X_test)
+# metrics_random = calculate_metrics(y_test, y_pred_random)
 
-completion_time_random = time.time() - start_time  # End time
-append_metrics_to_csv('Hgbrt_Random', metrics_random, completion_time_random)
-append_best_params_to_csv('Hgbrt_Random', random_search.best_params_)
+# completion_time_random = time.time() - start_time  # End time
+# append_metrics_to_csv('Hgbrt_Random', metrics_random, completion_time_random)
+# append_best_params_to_csv('Hgbrt_Random', random_search.best_params_)
 
-# Bayesian Optimization (Bayesian Optimization with Gaussian Process)
-start_time = time.time()
-search_space = {
-    'learning_rate': Real(0.001, 0.5, prior='uniform'),
-    'max_iter': Integer(5, 500),
-    'max_leaf_nodes': Integer(5, 100),
-    'max_depth': Integer(5, 25),
-    'min_samples_leaf': Integer(5, 50),
-    'l2_regularization': Real(0, 2, prior='uniform')
-}
+# # Bayesian Optimization (Bayesian Optimization with Gaussian Process)
+# start_time = time.time()
+# search_space = {
+#     'learning_rate': Real(0.001, 0.5, prior='uniform'),
+#     'max_iter': Integer(5, 500),
+#     'max_leaf_nodes': Integer(5, 100),
+#     'max_depth': Integer(5, 25),
+#     'min_samples_leaf': Integer(5, 50),
+#     'l2_regularization': Real(0, 2, prior='uniform')
+# }
 
 
-bayes_search = BayesSearchCV(model, search_space, n_iter=100, cv=5, scoring='neg_mean_squared_error', random_state=44)
-bayes_search.fit(X_train, y_train)
+# bayes_search = BayesSearchCV(model, search_space, n_iter=100, cv=5, scoring='neg_mean_squared_error', random_state=44)
+# bayes_search.fit(X_train, y_train)
 
-y_pred_bayes = bayes_search.best_estimator_.predict(X_test)
-metrics_bayes = calculate_metrics(y_test, y_pred_bayes)
+# y_pred_bayes = bayes_search.best_estimator_.predict(X_test)
+# metrics_bayes = calculate_metrics(y_test, y_pred_bayes)
 
-completion_time_bayes = time.time() - start_time
-append_metrics_to_csv('Hgbrt_BO_GP', metrics_bayes, completion_time_bayes)
-append_best_params_to_csv('Hgbrt_BO_GP', bayes_search.best_params_)
+# completion_time_bayes = time.time() - start_time
+# append_metrics_to_csv('Hgbrt_BO_GP', metrics_bayes, completion_time_bayes)
+# append_best_params_to_csv('Hgbrt_BO_GP', bayes_search.best_params_)
 
 
 # Bayesian Optimization with TPE (Hyperopt)
@@ -167,7 +167,7 @@ space = {
 }
 
 trials = Trials()
-best_tpe = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=100, trials=trials, rstate=np.random.default_rng(44))
+best_tpe = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=100, trials=trials, rstate=np.random.default_rng(50))
 
 best_params_tpe = {k: int(v) if isinstance(v, float) and k in ['max_iter', 'max_leaf_nodes', 'max_depth', 'min_samples_leaf'] else v for k, v in best_tpe.items()}
 
@@ -181,31 +181,31 @@ completion_time_tpe = time.time() - start_time
 append_metrics_to_csv('Hgbrt_BO_TPE', metrics_tpe, completion_time_tpe)
 append_best_params_to_csv('Hgbrt_BO_TPE', best_params_tpe)
 
-# Optuna - Hyperband Optimization (Using correct HyperbandPruner)
-start_time = time.time()
-def objective(trial):
-    model = HistGradientBoostingRegressor(
-        learning_rate=trial.suggest_float('learning_rate', 0.001, 0.5),
-        max_iter=trial.suggest_int('max_iter', 5, 500),
-        max_leaf_nodes=trial.suggest_int('max_leaf_nodes', 5, 100),
-        max_depth=trial.suggest_int('max_depth', 5, 30),
-        min_samples_leaf=trial.suggest_int('min_samples_leaf', 5, 50),
-        l2_regularization=trial.suggest_float('l2_regularization', 0, 2),
-        random_state=40
-    )
-    return -cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error').mean()
+# # Optuna - Hyperband Optimization (Using correct HyperbandPruner)
+# start_time = time.time()
+# def objective(trial):
+#     model = HistGradientBoostingRegressor(
+#         learning_rate=trial.suggest_float('learning_rate', 0.001, 0.5),
+#         max_iter=trial.suggest_int('max_iter', 5, 500),
+#         max_leaf_nodes=trial.suggest_int('max_leaf_nodes', 5, 100),
+#         max_depth=trial.suggest_int('max_depth', 5, 30),
+#         min_samples_leaf=trial.suggest_int('min_samples_leaf', 5, 50),
+#         l2_regularization=trial.suggest_float('l2_regularization', 0, 2),
+#         random_state=40
+#     )
+#     return -cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error').mean()
 
-study = optuna.create_study(direction='minimize', sampler=TPESampler(seed=44), pruner=HyperbandPruner())
-study.optimize(objective, n_trials=100)
+# study = optuna.create_study(direction='minimize', sampler=TPESampler(seed=44), pruner=HyperbandPruner())
+# study.optimize(objective, n_trials=100)
 
-best_params_hyperband = study.best_params
-model_hyperband = HistGradientBoostingRegressor(**best_params_hyperband, random_state=40)
-model_hyperband.fit(X_train, y_train)
+# best_params_hyperband = study.best_params
+# model_hyperband = HistGradientBoostingRegressor(**best_params_hyperband, random_state=40)
+# model_hyperband.fit(X_train, y_train)
 
-y_pred_hyperband = model_hyperband.predict(X_test)
-metrics_hyperband = calculate_metrics(y_test, y_pred_hyperband)
+# y_pred_hyperband = model_hyperband.predict(X_test)
+# metrics_hyperband = calculate_metrics(y_test, y_pred_hyperband)
 
-completion_time_hyperband = time.time() - start_time
-append_metrics_to_csv('Hgbrt_BO_HB', metrics_hyperband, completion_time_hyperband)
-append_best_params_to_csv('Hgbrt_BO_HB', best_params_hyperband)
+# completion_time_hyperband = time.time() - start_time
+# append_metrics_to_csv('Hgbrt_BO_HB', metrics_hyperband, completion_time_hyperband)
+# append_best_params_to_csv('Hgbrt_BO_HB', best_params_hyperband)
 
