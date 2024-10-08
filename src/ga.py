@@ -142,7 +142,7 @@ def append_best_params_to_csv(model_name: str, best_params: dict, completion_tim
 
 if __name__ == "__main__":
     # Load the dataset
-    data = pd.read_csv("../data/augmented_datasett.csv")
+    data = pd.read_csv("../data/augmented_dataset.csv")
     X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
     y = data['Resource_Allocation']
 
@@ -170,7 +170,7 @@ if __name__ == "__main__":
         y_train=y_train.values,
         fitness_func=fitness_function,
         fitness_limit=0.01,  # Desired fitness level (NMSE)
-        generation_limit=10
+        generation_limit=20
     )
 
     # Set the best found parameters to the model
