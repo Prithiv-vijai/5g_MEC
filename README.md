@@ -110,4 +110,10 @@ Follow these steps to run the project:
    python params.py
    ```
 
+10. **Testing**
+   - Run `test.py` to see how training and testing metrics differ
+   ```bash
+   python test.py
+   ```
+
 

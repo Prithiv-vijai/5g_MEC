@@ -1,64 +1,92 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor, HistGradientBoostingRegressor
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
-import xgboost as xgb
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from sklearn.ensemble import HistGradientBoostingRegressor
+import matplotlib.pyplot as plt
 
 # Load the dataset from a CSV file
-df = pd.read_csv('../data/augmented_dataset.csv')
+data = pd.read_csv('../data/augmented_dataset.csv')
 
-# Define features (X) and target (y)
-X = df[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
-y = df['Resource_Allocation']
+# Define features and target
+X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
+y = data['Resource_Allocation']
 
-# Split the dataset into training and testing sets
+# Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-
-seed=42
-# Define the models
-models = {
-    # 'Random Forest': RandomForestRegressor(random_state=seed),
-    # 'XGBoost': xgb.XGBRegressor(random_state=seed),
-    'HGBRT': HistGradientBoostingRegressor(random_state=seed)
+# Define the model with the best parameters
+best_params_tpe = {
+    'l2_regularization': 1.9804935266969126,
+    'learning_rate': 0.052186054713003985,
+    'max_depth': 16,
+    'max_iter': 141,
+    'max_leaf_nodes': 45,
+    'min_samples_leaf': 10
 }
 
-# Dictionary to store the results
-results = {}
+# Create the model with the best parameters
+model_tpe = HistGradientBoostingRegressor(**best_params_tpe, random_state=40)
 
-# Train and evaluate each model
-for name, model in models.items():
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
+# Fit the model to the training data
+model_tpe.fit(X_train, y_train)
 
-    mse = mean_squared_error(y_test, y_pred)
+# Predictions on the training set
+y_train_pred = model_tpe.predict(X_train)
+# Predictions on the testing set
+y_test_pred = model_tpe.predict(X_test)
+
+# Function to calculate metrics
+def calculate_metrics(y_true, y_pred):
+    mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-    mape = mean_absolute_percentage_error(y_test, y_pred)
+    r2 = r2_score(y_true, y_pred)
+    mae = mean_absolute_error(y_true, y_pred)
+    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100  # MAPE calculation
+    return mse, rmse, r2, mae, mape
 
-    results[name] = {
-        'MSE': mse,
-        'RMSE': rmse,
-        'MAE': mae,
-        'R²': r2,
-        'MAPE': mape
-    }
+# Calculate metrics for training and testing sets
+train_metrics = calculate_metrics(y_train, y_train_pred)
+test_metrics = calculate_metrics(y_test, y_test_pred)
 
-# Convert the results dictionary to a DataFrame for ranking and display
-metrics_df = pd.DataFrame(results).T
+# Create a DataFrame for easy plotting
+metrics_names = ['MSE', 'RMSE', 'R2', 'MAE', 'MAPE']
+train_values = list(train_metrics)
+test_values = list(test_metrics)
 
-# Print the metrics for each model
-print("\nMetrics for each model:")
-print(metrics_df)
+# Create a DataFrame for easy plotting
+metrics_df = pd.DataFrame({
+    'Metrics': metrics_names,
+    'Training': train_values,
+    'Testing': test_values
+})
 
-# Identify the best model for each metric
-print("\nBest models based on each metric:")
+# Plotting the metrics differences
+plt.figure(figsize=(12, 6))
+bar_width = 0.35
+x = np.arange(len(metrics_df['Metrics']))
 
-for metric in ['MSE', 'RMSE', 'MAE', 'R²', 'MAPE']:
-    best_model = metrics_df[metric].idxmin() if metric != 'R²' else metrics_df[metric].idxmax()
-    best_value = metrics_df[metric][best_model]
-    print(f"Best {metric}: {best_model} with value {best_value:.4f}")
-    
-print("RANDOM STATE = ",seed)
+# Bar for training metrics
+plt.bar(x - bar_width/2, metrics_df['Training'], width=bar_width, label='Training Metrics', color='#4c72b0')
+# Bar for testing metrics
+plt.bar(x + bar_width/2, metrics_df['Testing'], width=bar_width, label='Testing Metrics', color='lightcoral')
+
+
+
+plt.title('Comparison of Training and Testing Metrics')
+plt.xlabel('Metrics')
+plt.ylabel('Values')
+plt.xticks(x, metrics_df['Metrics'])
+plt.legend()
+
+
+
+# Adjust text annotations to be inside the plot
+for i in range(len(metrics_df)):
+    # Position the text slightly above the bar but within the plot area
+    plt.text(x[i] - bar_width/2, metrics_df['Training'][i] + 0.1, f"{metrics_df['Training'][i]:.2f}", ha='center', color='blue', fontsize=10)
+    plt.text(x[i] + bar_width/2, metrics_df['Testing'][i] + 0.1, f"{metrics_df['Testing'][i]:.2f}", ha='center', color='red', fontsize=10)
+
+plt.ylim(0, 1.8)  
+plt.savefig('../graphs/model_output/train_vs_test.png')
+
