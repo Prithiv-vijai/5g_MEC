@@ -83,63 +83,6 @@ def append_best_params_to_csv(model_name, best_params):
 
 
 
-# Define the Optuna Multi-Objective Optimization objective function
-def optuna_objective_multi(trial):
-    # Suggest hyperparameters
-    learning_rate = trial.suggest_float('learning_rate', 0.001, 0.5)
-    max_iter = trial.suggest_int('max_iter', 5, 500)
-    max_leaf_nodes = trial.suggest_int('max_leaf_nodes', 5, 100)
-    max_depth = trial.suggest_int('max_depth', 5, 30)
-    min_samples_leaf = trial.suggest_int('min_samples_leaf', 5, 50)
-    l2_regularization = trial.suggest_float('l2_regularization', 0, 2)
-
-    # Initialize the model with suggested hyperparameters
-    model = HistGradientBoostingRegressor(
-        learning_rate=learning_rate,
-        max_iter=max_iter,
-        max_leaf_nodes=max_leaf_nodes,
-        max_depth=max_depth,
-        min_samples_leaf=min_samples_leaf,
-        l2_regularization=l2_regularization,
-        random_state=random_seed,
-    )
-
-    # Use cross-validation to evaluate the model
-    mse = -cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error').mean()
-    mape = -cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_absolute_percentage_error').mean()
-
-    return mse, mape
-
-# Start timing for Multi-Objective Optimization
-start_time = time.time()
-
-# Create a study and optimize using Multi-Objective Optimization
-study_multi = optuna.create_study(directions=["minimize", "minimize"])
-for trial in range(1, 51):  # Set iteration to 50
-    print(f"Starting trial {trial}/50 for Multi-Objective...")
-    study_multi.optimize(optuna_objective_multi, n_trials=1)
-
-# Get the best trials
-best_trials_multi = study_multi.best_trials
-best_params_multi = best_trials_multi[0].params  # Get the parameters of the first best trial
-
-# Train the model with the best hyperparameters from Multi-Objective Optimization
-model_multi = HistGradientBoostingRegressor(**best_params_multi, random_state=random_seed)
-model_multi.fit(X_train, y_train)
-
-# Predict and calculate metrics for Multi-Objective Optimization
-y_pred_multi = model_multi.predict(X_test)
-metrics_multi = calculate_metrics(y_test, y_pred_multi)
-
-# Append metrics and best parameters to CSV for Multi-Objective Optimization
-completion_time_multi = time.time() - start_time
-append_metrics_to_csv('Hgbrt_BO_Multi', metrics_multi, completion_time_multi)
-append_best_params_to_csv('Hgbrt_BO_Multi', best_params_multi)
-
-# Optional: Print best parameters and metrics for Multi-Objective Optimization confirmation
-print("Best Hyperparameters (Multi): ", best_params_multi)
-print("Metrics (Multi): ", metrics_multi)
-
 
 # Define the Population-Based Training (PBT) Setup
 class PBT:
@@ -155,12 +98,12 @@ class PBT:
 
     def sample_model(self):
         return {
-            "learning_rate": np.random.uniform(0.001, 0.5),
-            "max_iter": np.random.randint(5, 500),
-            "max_leaf_nodes": np.random.randint(5, 100),
-            "max_depth": np.random.randint(5, 30),
-            "min_samples_leaf": np.random.randint(5, 50),
-            "l2_regularization": np.random.uniform(0, 2),
+            "learning_rate": np.random.uniform(0.001, 0.1),
+            "max_iter": np.random.randint(100, 300),
+            "max_leaf_nodes": np.random.randint(5, 50),
+            "max_depth": np.random.randint(5, 25),
+            "min_samples_leaf": np.random.randint(10, 50),
+            "l2_regularization": np.random.uniform(1, 5),
         }
 
     def optimize(self):

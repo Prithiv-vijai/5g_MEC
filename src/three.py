@@ -160,6 +160,6 @@ def differential_evolution_optimization():
     print("Differential Evolution Optimization completed.\n")
 
 # Call the optimization functions
-automl_tpot()
+# automl_tpot()
 differential_evolution_optimization()
 gradient_based_optimization()

@@ -17,14 +17,13 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # Define the model with the best parameters
 best_params_tpe = {
-    'l2_regularization': 1.9804935266969126,
-    'learning_rate': 0.052186054713003985,
-    'max_depth': 16,
-    'max_iter': 141,
-    'max_leaf_nodes': 45,
-    'min_samples_leaf': 10
+    'l2_regularization': 2.17108865524441702,
+    'learning_rate': 0.2793413816610001,
+    'max_depth': 20,
+    'max_iter': 172,
+    'max_leaf_nodes': 94,
+    'min_samples_leaf': 5
 }
-
 # Create the model with the best parameters
 model_tpe = HistGradientBoostingRegressor(**best_params_tpe, random_state=40)
 

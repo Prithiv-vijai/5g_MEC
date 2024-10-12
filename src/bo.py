@@ -139,7 +139,7 @@ def bayesian_optimization_gp():
         return evaluate_model(model, X_train, y_train)[0]  # Use K-fold CV here
 
     start_time = time.time()
-    study = optuna.create_study(sampler=optuna.samplers.RandomSampler(seed=state))
+    study = optuna.create_study(sampler=optuna.samplers.GPSampler(seed=state))
     study.optimize(objective, n_trials=iter)
     best_params = study.best_params
     metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=40), X_train, y_train)
@@ -269,10 +269,10 @@ def qmc_optimization():
 
 # Run the optimization functions
 if __name__ == '__main__':
-    grid_search()
-    random_search()
-    bayesian_optimization_tpe()
+    # grid_search()
+    # random_search()
+    # bayesian_optimization_tpe()
     bayesian_optimization_gp()
-    cmaes_optimization()
-    qmc_optimization()
+    # cmaes_optimization()
+    # qmc_optimization()
 

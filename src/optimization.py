@@ -1,19 +1,12 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
 from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error, mean_absolute_error
-from skopt import BayesSearchCV
-from skopt.space import Real, Integer
-from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
-import optuna
-from optuna.samplers import TPESampler
-from optuna.pruners import HyperbandPruner
 import os
 import time
+import optuna
+from optuna.samplers import TPESampler
 
 # Load the dataset from a CSV file
 data = pd.read_csv('../data/augmented_dataset.csv')
@@ -24,6 +17,9 @@ y = data['Resource_Allocation']
 
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+iter = 500
+state = 43
 
 # Function to calculate metrics
 def calculate_metrics(y_test, y_pred):
@@ -54,6 +50,14 @@ def append_metrics_to_csv(model_name, metrics, completion_time, model_category='
     else:
         df_metrics.to_csv(file_path, mode='a', header=False, index=False, columns=column_order)
 
+# Function to evaluate the model with cross-validation
+def evaluate_model(model, X, y, cv=5):
+    scores = cross_val_score(model, X, y, cv=cv, scoring='neg_mean_squared_error')
+    mean_mse = -scores.mean()
+    model.fit(X, y)
+    y_pred = model.predict(X)
+    return calculate_metrics(y, y_pred)  # Return metrics based on predictions
+
 # Append best parameters to CSV
 def append_best_params_to_csv(model_name, best_params):
     for key in best_params:
@@ -77,135 +81,41 @@ def append_best_params_to_csv(model_name, best_params):
         df_params.to_csv(file_path, mode='w', header=True, index=False)
     else:
         df_params.to_csv(file_path, mode='a', header=False, index=False)
-        
-        
-model = HistGradientBoostingRegressor(random_state=40)
 
-# Grid Search
-start_time = time.time()  # Start time
-param_grid = {
-    'learning_rate': [0.01, 0.1, 0.2],
-    'max_iter': [100, 200 ,300],
-    'max_leaf_nodes': [20, 30, 40] ,
-    'max_depth': [None, 10, 20 ],
-    'min_samples_leaf': [10, 20],
-    'l2_regularization': [0, 0.1, 0.5]
-}
+# Bayesian Optimization using TPE for Multi-Objective
+def bayesian_optimization_tpe_multi_objective():
+    print("Starting Multi-Objective Bayesian Optimization with TPE...")
 
-grid_search = GridSearchCV(model, param_grid=param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1)
-grid_search.fit(X_train, y_train)
+    def objective(trial):
+        learning_rate = trial.suggest_float('learning_rate', 0.001, 0.1)
+        max_iter = trial.suggest_int('max_iter', 100, 300)
+        max_leaf_nodes = trial.suggest_int('max_leaf_nodes', 5, 50)
+        max_depth = trial.suggest_int('max_depth', 5, 25)
+        min_samples_leaf = trial.suggest_int('min_samples_leaf', 10, 50)
+        l2_regularization = trial.suggest_float('l2_regularization', 1, 5)
 
-y_pred_grid = grid_search.best_estimator_.predict(X_test)
-metrics_grid = calculate_metrics(y_test, y_pred_grid)
+        model = HistGradientBoostingRegressor(random_state=40,
+                                              learning_rate=learning_rate,
+                                              max_iter=max_iter,
+                                              max_leaf_nodes=max_leaf_nodes,
+                                              max_depth=max_depth,
+                                              min_samples_leaf=min_samples_leaf,
+                                              l2_regularization=l2_regularization)
 
-completion_time_grid = time.time() - start_time  # End time
-append_metrics_to_csv('Hgbrt_Grid', metrics_grid, completion_time_grid)
-append_best_params_to_csv('Hgbrt_Grid', grid_search.best_params_)
+        # Evaluate metrics for multi-objective optimization
+        mse, rmse, mae, r2, mape = evaluate_model(model, X_train, y_train)
+        return mae # Multi-objective optimization for MSE and MAE
 
-# Random Search
-start_time = time.time()  # Start time
-param_grid_random = {
-    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2, 0.5],
-    'max_iter': [100, 200, 300, 400, 500],
-    'max_leaf_nodes': [20, 31, 50, 70, 100],
-    'max_depth': [5, 10, 15, 20, 25],
-    'min_samples_leaf': [10, 20, 30, 40, 50],
-    'l2_regularization': [0, 0.1, 0.5, 0.8, 1]
-}
+    start_time = time.time()
+    study = optuna.create_study(directions=["minimize"], sampler=TPESampler(seed=state))
+    study.optimize(objective, n_trials=iter)
+    best_params = study.best_trials[0].params  # Get the parameters from the best trial
+    metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=40), X_train, y_train)
+    
+    # Append best metrics and parameters to CSV
+    append_metrics_to_csv('Hgbrt_BO_TPE_MO', metrics, time.time() - start_time)
+    append_best_params_to_csv('Hgbrt_BO_TPE_MO', best_params)
 
-random_search = RandomizedSearchCV(model, param_distributions=param_grid_random, n_iter=100, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, verbose=1,random_state=44)
-random_search.fit(X_train, y_train)
-
-y_pred_random = random_search.best_estimator_.predict(X_test)
-metrics_random = calculate_metrics(y_test, y_pred_random)
-
-completion_time_random = time.time() - start_time  # End time
-append_metrics_to_csv('Hgbrt_Random', metrics_random, completion_time_random)
-append_best_params_to_csv('Hgbrt_Random', random_search.best_params_)
-
-# Bayesian Optimization (Bayesian Optimization with Gaussian Process)
-start_time = time.time()
-search_space = {
-    'learning_rate': Real(0.001, 0.5, prior='uniform'),
-    'max_iter': Integer(5, 500),
-    'max_leaf_nodes': Integer(5, 100),
-    'max_depth': Integer(5, 25),
-    'min_samples_leaf': Integer(5, 50),
-    'l2_regularization': Real(0, 2, prior='uniform')
-}
-
-
-bayes_search = BayesSearchCV(model, search_space, n_iter=100, cv=5, scoring='neg_mean_squared_error', random_state=44)
-bayes_search.fit(X_train, y_train)
-
-y_pred_bayes = bayes_search.best_estimator_.predict(X_test)
-metrics_bayes = calculate_metrics(y_test, y_pred_bayes)
-
-completion_time_bayes = time.time() - start_time
-append_metrics_to_csv('Hgbrt_BO_GP', metrics_bayes, completion_time_bayes)
-append_best_params_to_csv('Hgbrt_BO_GP', bayes_search.best_params_)
-
-
-# Bayesian Optimization with TPE (Hyperopt)
-start_time = time.time()
-def objective(params):
-    params['max_iter'] = int(params['max_iter'])
-    params['max_leaf_nodes'] = int(params['max_leaf_nodes'])
-    params['max_depth'] = int(params['max_depth'])
-    params['min_samples_leaf'] = int(params['min_samples_leaf'])
-    model = HistGradientBoostingRegressor(**params, random_state=10)
-    score = -cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error').mean()
-    return {'loss': score, 'status': STATUS_OK}
-
-space = {
-    'learning_rate': hp.uniform('learning_rate', 0.001, 0.5),
-    'max_iter': hp.quniform('max_iter', 5, 500, 1),
-    'max_leaf_nodes': hp.quniform('max_leaf_nodes', 5, 100, 1),
-    'max_depth': hp.quniform('max_depth', 5, 30, 1),
-    'min_samples_leaf': hp.quniform('min_samples_leaf', 5, 50, 1),
-    'l2_regularization': hp.uniform('l2_regularization', 0, 2)
-}
-
-trials = Trials()
-best_tpe = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=100, trials=trials, rstate=np.random.default_rng(60))
-
-best_params_tpe = {k: int(v) if isinstance(v, float) and k in ['max_iter', 'max_leaf_nodes', 'max_depth', 'min_samples_leaf'] else v for k, v in best_tpe.items()}
-
-model_tpe = HistGradientBoostingRegressor(**best_params_tpe, random_state=40)
-model_tpe.fit(X_train, y_train)
-
-y_pred_tpe = model_tpe.predict(X_test)
-metrics_tpe = calculate_metrics(y_test, y_pred_tpe)
-
-completion_time_tpe = time.time() - start_time
-append_metrics_to_csv('Hgbrt_BO_TPE', metrics_tpe, completion_time_tpe)
-append_best_params_to_csv('Hgbrt_BO_TPE', best_params_tpe)
-
-# Optuna - Hyperband Optimization (Using correct HyperbandPruner)
-start_time = time.time()
-def objective(trial):
-    model = HistGradientBoostingRegressor(
-        learning_rate=trial.suggest_float('learning_rate', 0.001, 0.5),
-        max_iter=trial.suggest_int('max_iter', 5, 500),
-        max_leaf_nodes=trial.suggest_int('max_leaf_nodes', 5, 100),
-        max_depth=trial.suggest_int('max_depth', 5, 30),
-        min_samples_leaf=trial.suggest_int('min_samples_leaf', 5, 50),
-        l2_regularization=trial.suggest_float('l2_regularization', 0, 2),
-        random_state=40
-    )
-    return -cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error').mean()
-
-study = optuna.create_study(direction='minimize', sampler=TPESampler(seed=44), pruner=HyperbandPruner())
-study.optimize(objective, n_trials=100)
-
-best_params_hyperband = study.best_params
-model_hyperband = HistGradientBoostingRegressor(**best_params_hyperband, random_state=40)
-model_hyperband.fit(X_train, y_train)
-
-y_pred_hyperband = model_hyperband.predict(X_test)
-metrics_hyperband = calculate_metrics(y_test, y_pred_hyperband)
-
-completion_time_hyperband = time.time() - start_time
-append_metrics_to_csv('Hgbrt_BO_HB', metrics_hyperband, completion_time_hyperband)
-append_best_params_to_csv('Hgbrt_BO_HB', best_params_hyperband)
-
+# Run the multi-objective optimization function
+if __name__ == '__main__':
+    bayesian_optimization_tpe_multi_objective()
