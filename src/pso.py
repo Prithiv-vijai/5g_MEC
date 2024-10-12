@@ -11,12 +11,12 @@ DIMENSIONS = 6              # Number of dimensions (hyperparameters)
 B_LO = [0.001, 100, 20, 5, 10, 0]  # Lower boundary of search space for hyperparameters
 B_HI = [0.5, 500, 100, 25, 50, 2]  # Upper boundary of search space for hyperparameters
 
-POPULATION = 20             # Number of particles in the swarm
+POPULATION = 30             # Number of particles in the swarm
 V_MAX = 0.1                 # Maximum velocity value
 PERSONAL_C = 2.0            # Personal coefficient factor
 SOCIAL_C = 2.0              # Social coefficient factor
 CONVERGENCE = 0.001         # Convergence threshold
-MAX_ITER = 50               # Maximum number of iterations
+MAX_ITER = 200              # Maximum number of iterations
 
 RANDOM_SEED = 42            # Seed for reproducibility
 

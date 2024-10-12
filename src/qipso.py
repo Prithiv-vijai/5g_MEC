@@ -18,17 +18,20 @@ data = pd.read_csv('../data/augmented_dataset.csv')
 X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
 y = data['Resource_Allocation']
 
-# Split the data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
 # Function to calculate metrics
-def calculate_metrics(y_test, y_pred):
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-    r2 = r2_score(y_test, y_pred)
-    mape = mean_absolute_percentage_error(y_test, y_pred)
-    mae = mean_absolute_error(y_test, y_pred)
-    return mse, rmse, mae, r2, mape
+def calculate_metrics_cv(model, X, y, cv=5):
+    # Perform cross-validation
+    mse_scores = cross_val_score(model, X, y, cv=cv, scoring='neg_mean_squared_error')
+    mse_scores = -mse_scores  # Convert negative MSE to positive
+
+    # Compute average and standard deviation of metrics
+    avg_mse = np.mean(mse_scores)
+    rmse = np.sqrt(avg_mse)
+    avg_mae = np.mean(cross_val_score(model, X, y, cv=cv, scoring='neg_mean_absolute_error')) * -1
+    avg_r2 = np.mean(cross_val_score(model, X, y, cv=cv, scoring='r2'))
+    avg_mape = np.mean(cross_val_score(model, X, y, cv=cv, scoring='neg_mean_absolute_percentage_error')) * -1
+
+    return avg_mse, rmse, avg_mae, avg_r2, avg_mape
 
 # Append metrics to CSV
 def append_metrics_to_csv(model_name, metrics, completion_time, model_category='Boosting Models'):
@@ -71,61 +74,12 @@ def append_best_params_to_csv(model_name, best_params):
 # Initialize the model
 model = HistGradientBoostingRegressor(random_state=40)
 
-def evaluate_model(model, X, y):
-    # Perform cross-validation
-    cv_scores = cross_val_score(model, X, y, cv=5, scoring='neg_mean_squared_error')
-    mse_scores = -cv_scores  # Convert back to positive MSE
-    mean_mse = np.mean(mse_scores)
-    std_mse = np.std(mse_scores)
-
-    # Train the model and predict on the test set
-    model.fit(X, y)
-    y_pred = model.predict(X_test)
-
-    # Calculate metrics
-    metrics = calculate_metrics(y_test, y_pred)
-    return metrics, mean_mse, std_mse
-
-def objective_function(params):
-    # Unpack parameters and ensure parameter constraints
-    learning_rate = np.clip(params[0], 0.001, 0.5)
-    max_iter = np.clip(int(params[1]), 5, 500)  # Already converted to int here
-    max_leaf_nodes = max(2, int(params[2]))      # Already converted to int here
-    max_depth = max(1, int(params[3]))            # Already converted to int here
-    min_samples_leaf = max(1, int(params[4]))     # Already converted to int here
-    l2_regularization = np.clip(params[5], 0, 2)
-
-    # Set parameters for the model
-    model.set_params(
-        learning_rate=learning_rate,
-        max_iter=max_iter,
-        max_leaf_nodes=max_leaf_nodes,
-        max_depth=max_depth,
-        min_samples_leaf=min_samples_leaf,
-        l2_regularization=l2_regularization
-    )
-
-    # Evaluate the model and return the score (mean MSE from CV)
-    _, mean_mse, _ = evaluate_model(model, X_train, y_train)
-    return mean_mse  # Return the score for minimization
-
-# Define the bounds for the parameters
-bounds = [
-    (0.001, 0.5),    # learning_rate
-    (5, 500),        # max_iter
-    (2, 100),        # max_leaf_nodes (minimum 2)
-    (1, 25),         # max_depth (minimum 1)
-    (1, 50),         # min_samples_leaf (minimum 1)
-    (0, 2)           # l2_regularization
-]
-
 # Quantum-Inspired Particle Swarm Optimization (QIPSO)
 class QIPSO:
-    def __init__(self, objective_function, num_particles=30, max_iter=50):
+    def __init__(self, objective_function, num_particles=30, max_iter=100):
         self.objective_function = objective_function
         self.num_particles = num_particles
         self.max_iter = max_iter
-        # Ensure integer values for max_iter, max_depth, max_leaf_nodes, and min_samples_leaf
         self.particles = np.zeros((num_particles, 6))
         self.particles[:, 0] = np.random.uniform(0.001, 0.5, num_particles)  # learning_rate
         self.particles[:, 1] = np.random.randint(5, 501, num_particles)       # max_iter
@@ -156,26 +110,53 @@ class QIPSO:
 
             # Update velocities and positions
             for i in range(self.num_particles):
-                # Quantum-inspired update
                 self.velocities[i] = (
                     0.5 * self.velocities[i] + 
                     2 * np.random.rand() * (self.best_positions[i] - self.particles[i]) + 
                     2 * np.random.rand() * (self.global_best_position - self.particles[i])
                 )
-
                 self.particles[i] += self.velocities[i]
-                # Ensure particles stay within bounds
                 for j in range(len(bounds)):
                     self.particles[i, j] = np.clip(self.particles[i, j], bounds[j][0], bounds[j][1])
 
-            # Print progress for each iteration
             print(f"Iteration {iteration + 1}/{self.max_iter}: Best Score = {self.global_best_score}")
 
         return self.global_best_position
 
+# Objective function for optimization
+def objective_function(params):
+    learning_rate = np.clip(params[0], 0.001, 0.5)
+    max_iter = np.clip(int(params[1]), 5, 500)
+    max_leaf_nodes = max(2, int(params[2]))
+    max_depth = max(1, int(params[3]))
+    min_samples_leaf = max(1, int(params[4]))
+    l2_regularization = np.clip(params[5], 0, 2)
+
+    model.set_params(
+        learning_rate=learning_rate,
+        max_iter=max_iter,
+        max_leaf_nodes=max_leaf_nodes,
+        max_depth=max_depth,
+        min_samples_leaf=min_samples_leaf,
+        l2_regularization=l2_regularization
+    )
+
+    mse, _, _, _, _ = calculate_metrics_cv(model, X, y, cv=5)
+    return mse
+
+# Define parameter bounds
+bounds = [
+    (0.001, 0.5),    # learning_rate
+    (5, 500),        # max_iter
+    (2, 100),        # max_leaf_nodes
+    (1, 25),         # max_depth
+    (1, 50),         # min_samples_leaf
+    (0, 2)           # l2_regularization
+]
+
 # Start the QIPSO optimization
 start_time_qipso = time.time()
-print("Starting Quantum-Inspired Particle Swarm Optimization (QIPSO)...")
+print("Starting Quantum-Inspired Particle Swarm Optimization (QIPSO) with Cross-Validation (cv=5)...")
 
 qipso_optimizer = QIPSO(objective_function)
 best_params_qipso = qipso_optimizer.optimize()
@@ -190,12 +171,10 @@ model.set_params(
     l2_regularization=best_params_qipso[5]
 )
 
-# Evaluate the model using the best parameters
-metrics, mean_mse, std_mse = evaluate_model(model, X_train, y_train)
-completion_time = time.time() - start_time_qipso
+metrics_qipso = calculate_metrics_cv(model, X, y, cv=5)
 
-# Save metrics and best parameters
-append_metrics_to_csv('HistGradientBoostingRegressor', metrics, completion_time)
-append_best_params_to_csv('HistGradientBoostingRegressor', best_params_qipso)
+completion_time_qipso = time.time() - start_time_qipso
+append_metrics_to_csv('Hgbrt_QIPSO_CV5', metrics_qipso, completion_time_qipso)
+append_best_params_to_csv('Hgbrt_QIPSO_CV5', best_params_qipso)
 
-print("Optimization and evaluation complete.")
+print("Completed QIPSO with cross-validation (cv=5) and best parameters:", best_params_qipso)
