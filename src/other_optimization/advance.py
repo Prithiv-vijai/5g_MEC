@@ -86,7 +86,7 @@ def append_best_params_to_csv(model_name, best_params):
 
 # Define the Population-Based Training (PBT) Setup
 class PBT:
-    def __init__(self, n_generations=10, n_population=10):
+    def __init__(self, n_generations=50, n_population=10):
         self.n_generations = n_generations
         self.n_population = n_population
         self.population = self.init_population()

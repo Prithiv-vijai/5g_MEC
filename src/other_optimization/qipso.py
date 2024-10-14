@@ -19,7 +19,7 @@ X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth'
 y = data['Resource_Allocation']
 
 # Function to calculate metrics
-def calculate_metrics_cv(model, X, y, cv=5):
+def calculate_metrics_cv(model, X, y, cv=3):
     # Perform cross-validation
     mse_scores = cross_val_score(model, X, y, cv=cv, scoring='neg_mean_squared_error')
     mse_scores = -mse_scores  # Convert negative MSE to positive
@@ -76,7 +76,7 @@ model = HistGradientBoostingRegressor(random_state=40)
 
 # Quantum-Inspired Particle Swarm Optimization (QIPSO)
 class QIPSO:
-    def __init__(self, objective_function, num_particles=30, max_iter=100):
+    def __init__(self, objective_function, num_particles=20, max_iter=200):
         self.objective_function = objective_function
         self.num_particles = num_particles
         self.max_iter = max_iter
@@ -141,7 +141,7 @@ def objective_function(params):
         l2_regularization=l2_regularization
     )
 
-    mse, _, _, _, _ = calculate_metrics_cv(model, X, y, cv=5)
+    mse, _, _, _, _ = calculate_metrics_cv(model, X, y, cv=3)
     return mse
 
 # Define parameter bounds
@@ -156,7 +156,7 @@ bounds = [
 
 # Start the QIPSO optimization
 start_time_qipso = time.time()
-print("Starting Quantum-Inspired Particle Swarm Optimization (QIPSO) with Cross-Validation (cv=5)...")
+print("Starting Quantum-Inspired Particle Swarm Optimization (QIPSO) with Cross-Validation (cv=3)...")
 
 qipso_optimizer = QIPSO(objective_function)
 best_params_qipso = qipso_optimizer.optimize()
@@ -171,10 +171,10 @@ model.set_params(
     l2_regularization=best_params_qipso[5]
 )
 
-metrics_qipso = calculate_metrics_cv(model, X, y, cv=5)
+metrics_qipso = calculate_metrics_cv(model, X, y, cv=3)
 
 completion_time_qipso = time.time() - start_time_qipso
 append_metrics_to_csv('Hgbrt_QIPSO_CV5', metrics_qipso, completion_time_qipso)
 append_best_params_to_csv('Hgbrt_QIPSO_CV5', best_params_qipso)
 
-print("Completed QIPSO with cross-validation (cv=5) and best parameters:", best_params_qipso)
+print("Completed QIPSO with cross-validation (cv=3) and best parameters:", best_params_qipso)

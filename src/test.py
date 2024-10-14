@@ -17,12 +17,12 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # Define the model with the best parameters
 best_params_tpe = {
-    'l2_regularization': 2.17108865524441702,
-    'learning_rate': 0.2793413816610001,
-    'max_depth': 20,
-    'max_iter': 172,
-    'max_leaf_nodes': 94,
-    'min_samples_leaf': 5
+    'l2_regularization': 3.114771316160287,
+    'learning_rate': 0.09275685977836234,
+    'max_depth': 18,
+    'max_iter': 291,
+    'max_leaf_nodes': 45,
+    'min_samples_leaf': 13
 }
 # Create the model with the best parameters
 model_tpe = HistGradientBoostingRegressor(**best_params_tpe, random_state=40)
@@ -72,7 +72,7 @@ plt.bar(x + bar_width/2, metrics_df['Testing'], width=bar_width, label='Testing 
 
 
 
-plt.title('Comparison of Training and Testing Metrics')
+
 plt.xlabel('Metrics')
 plt.ylabel('Values')
 plt.xticks(x, metrics_df['Metrics'])

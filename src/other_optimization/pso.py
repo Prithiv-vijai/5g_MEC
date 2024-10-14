@@ -16,7 +16,7 @@ V_MAX = 0.1                 # Maximum velocity value
 PERSONAL_C = 2.0            # Personal coefficient factor
 SOCIAL_C = 2.0              # Social coefficient factor
 CONVERGENCE = 0.001         # Convergence threshold
-MAX_ITER = 200              # Maximum number of iterations
+MAX_ITER = 400              # Maximum number of iterations
 
 RANDOM_SEED = 42            # Seed for reproducibility
 

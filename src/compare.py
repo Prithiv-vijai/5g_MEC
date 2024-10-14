@@ -14,11 +14,11 @@ additional_metric = 'Completion_Time'
 
 # Custom y-limits for each metric
 y_limits = {
-    'MSE': (1.2, 1.7),    # Adjust the limits based on your dataset
-    'RMSE': (1, 1.4),
-    'MAE': (0.8, 1.0),
-    'R2': (0.970, 0.985),
-    'MAPE': (0.010, 0.014),
+    'MSE': (1, 1.7),    # Adjust the limits based on your dataset
+    'RMSE': (1, 1.3),
+    'MAE': (0.6, 1.0),
+    'R2': (0.96, 1),
+    'MAPE': (0.010, 0.0135),
     'Completion_Time': (0, hgbrt_df['Completion_Time'].max() * 1.1)  # Adjust based on actual data
 }
 

@@ -63,17 +63,41 @@ def evaluate_model(model, X_train, y_train, X_test, y_test):
     y_pred = model.predict(X_test)
     return calculate_metrics(y_test, y_pred), np.mean(np.sqrt(-cv_scores))
 
-# AutoML using TPOT with enhanced configuration
+# AutoML using TPOT with HGBRT and hyperparameter optimization
 def automl_tpot():
     print("Starting TPOT AutoML with 5-fold CV...")
     start_time = time.time()
-    model = TPOTRegressor(generations=25, population_size=30, random_state=40, verbosity=2, cv=5)
+
+    # Define custom configuration for TPOT with HGBRT and specified parameter bounds
+    tpot_config = {
+        'sklearn.ensemble.HistGradientBoostingRegressor': {
+            'learning_rate': [0.001, 0.1],
+            'max_iter': range(100, 301),  # 100 to 300
+            'max_leaf_nodes': range(5, 51),  # 5 to 50
+            'max_depth': range(5, 26),  # 5 to 25
+            'min_samples_leaf': range(10, 51),  # 10 to 50
+            'l2_regularization': [1, 5]  # 1 to 5
+        }
+    }
+
+    model = TPOTRegressor(
+        generations=10,
+        population_size=20,
+        config_dict=tpot_config,
+        random_state=40,
+        verbosity=2,
+        cv=5
+    )
+
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
+    
     metrics, avg_cv_rmse = evaluate_model(model, X_train, y_train, X_test, y_test)
+    
     print(f"TPOT Avg CV RMSE: {avg_cv_rmse}")
-    append_metrics_to_csv('TPOT', metrics, time.time() - start_time, model_category='AutoML')
+    append_metrics_to_csv('TPOT_HGBRT', metrics, time.time() - start_time, model_category='AutoML')
     print("TPOT Optimization completed.\n")
+
 
 # Gradient-Based Optimization with Skopt
 def gradient_based_optimization():
@@ -104,7 +128,7 @@ def gradient_based_optimization():
     ]
 
     start_time = time.time()
-    res = gp_minimize(objective_function, bounds, n_calls=100, verbose=True)
+    res = gp_minimize(objective_function, bounds, n_calls=200, verbose=True)
     best_params = res.x
     model.set_params(learning_rate=best_params[0],
                      max_iter=int(best_params[1]),
@@ -146,7 +170,7 @@ def differential_evolution_optimization():
     ]
 
     start_time = time.time()
-    result = differential_evolution(objective_function, bounds, maxiter=100, disp=True)
+    result = differential_evolution(objective_function, bounds, maxiter=200, disp=True)
     best_params = result.x
     model.set_params(learning_rate=best_params[0],
                      max_iter=int(best_params[1]),
@@ -160,6 +184,6 @@ def differential_evolution_optimization():
     print("Differential Evolution Optimization completed.\n")
 
 # Call the optimization functions
-# automl_tpot()
-differential_evolution_optimization()
-gradient_based_optimization()
+automl_tpot()
+# differential_evolution_optimization()
+# gradient_based_optimization()
