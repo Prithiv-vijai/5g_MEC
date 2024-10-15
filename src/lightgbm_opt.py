@@ -6,7 +6,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, m
 import os
 import time
 import optuna
-from optuna.samplers import TPESampler, GPSampler, CmaEsSampler, QMCSampler
+from optuna.samplers import TPESampler, GPSampler, CmaEsSampler
 
 # Load the dataset from a CSV file
 data = pd.read_csv('../data/augmented_dataset.csv')
@@ -18,7 +18,7 @@ y = data['Resource_Allocation']
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-iter = 500
+iter = 200
 state = 42
 
 # Function to calculate metrics
@@ -67,6 +67,7 @@ def append_best_params_to_csv(model_name, best_params):
     ordered_params = {
         'Model Name': [model_name],
         'num_leaves': [best_params.get('num_leaves', 'None')],
+        'n_estimators': [best_params.get('n_estimators', 'None')],  # Added n_estimators
         'learning_rate': [best_params.get('learning_rate', 'None')],
         'max_depth': [best_params.get('max_depth', 'None')],
         'min_data_in_leaf': [best_params.get('min_data_in_leaf', 'None')],
@@ -74,8 +75,6 @@ def append_best_params_to_csv(model_name, best_params):
         'lambda_l2': [best_params.get('lambda_l2', 'None')],
         'bagging_fraction': [best_params.get('bagging_fraction', 'None')],
         'feature_fraction': [best_params.get('feature_fraction', 'None')],
-        'min_split_gain': [best_params.get('min_split_gain', 'None')],
-        'max_bin': [best_params.get('max_bin', 'None')]
     }
 
     df_params = pd.DataFrame(ordered_params)
@@ -88,18 +87,18 @@ def append_best_params_to_csv(model_name, best_params):
 
 # Global objective function
 def objective(trial):
+    n_estimators = trial.suggest_int('n_estimators', 100, 300) 
     learning_rate = trial.suggest_float('learning_rate', 0.001, 0.1)
-    num_leaves = trial.suggest_int('num_leaves', 20, 100)
-    max_depth = trial.suggest_int('max_depth', 5, 50)
+    num_leaves = trial.suggest_int('num_leaves', 5, 50)  
+    max_depth = trial.suggest_int('max_depth', 5, 25) 
     min_data_in_leaf = trial.suggest_int('min_data_in_leaf', 10, 50)
     lambda_l1 = trial.suggest_float('lambda_l1', 0, 1)
-    lambda_l2 = trial.suggest_float('lambda_l2', 0, 1)
-    bagging_fraction = trial.suggest_float('bagging_fraction', 0.4, 1.0)
-    feature_fraction = trial.suggest_float('feature_fraction', 0.4, 1.0)
-    min_split_gain = trial.suggest_float('min_split_gain', 0.0, 1.0)
-    max_bin = trial.suggest_int('max_bin', 10, 100)
+    lambda_l2 = trial.suggest_float('lambda_l2', 1, 3)
+    bagging_fraction = trial.suggest_float('bagging_fraction', 0.6, 1.0) 
+    feature_fraction = trial.suggest_float('feature_fraction', 0.6, 1.0)  
 
     model = lgb.LGBMRegressor(
+        n_estimators=n_estimators,  # Added n_estimators here
         random_state=42,
         learning_rate=learning_rate,
         num_leaves=num_leaves,
@@ -109,8 +108,6 @@ def objective(trial):
         lambda_l2=lambda_l2,
         bagging_fraction=bagging_fraction,
         feature_fraction=feature_fraction,
-        min_split_gain=min_split_gain,
-        max_bin=max_bin,
         verbosity=-1  
     )
 
@@ -143,32 +140,8 @@ def bayesian_optimization_gp():
     append_metrics_to_csv('LightGBM_BO_GP', metrics, time.time() - start_time)
     append_best_params_to_csv('LightGBM_BO_GP', best_params)
 
-# CMA-ES Sampler
-def cmaes_optimization():
-    print("Starting CMA-ES Optimization...")
-    start_time = time.time()
-    study = optuna.create_study(sampler=CmaEsSampler(seed=state))
-    study.optimize(objective, n_trials=iter)
-    best_params = study.best_params
-    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42), X_train, y_train)
 
-    append_metrics_to_csv('LightGBM_BO_CMAES', metrics, time.time() - start_time)
-    append_best_params_to_csv('LightGBM_BO_CMAES', best_params)
-
-# Quasi-Monte Carlo
-def quasi_monte_carlo():
-    print("Starting Quasi-Monte Carlo Optimization...")
-    start_time = time.time()
-    study = optuna.create_study(sampler=QMCSampler(seed=state))
-    study.optimize(objective, n_trials=iter)
-    best_params = study.best_params
-    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42), X_train, y_train)
-
-    append_metrics_to_csv('LightGBM_BO_QMC', metrics, time.time() - start_time)
-    append_best_params_to_csv('LightGBM_BO_QMC', best_params)
 
 # Running all optimization techniques
 bayesian_optimization_tpe()
 bayesian_optimization_gp()
-cmaes_optimization()
-quasi_monte_carlo()

@@ -6,7 +6,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, m
 import os
 import time
 import optuna
-from optuna.samplers import TPESampler, GPSampler, CmaEsSampler, QMCSampler
+from optuna.samplers import TPESampler, GPSampler
 
 # Load the dataset from a CSV file
 data = pd.read_csv('../data/augmented_dataset.csv')
@@ -18,7 +18,7 @@ y = data['Resource_Allocation']
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-iter = 500
+iter = 200
 state = 42
 
 # Function to calculate metrics
@@ -74,9 +74,8 @@ def append_best_params_to_csv(model_name, best_params):
         'lambda': [best_params.get('lambda', 'None')],
         'alpha': [best_params.get('alpha', 'None')],
         'gamma': [best_params.get('gamma', 'None')],
-        'scale_pos_weight': [best_params.get('scale_pos_weight', 'None')],
-        'max_bin': [best_params.get('max_bin', 'None')],
-        'tree_method': [best_params.get('tree_method', 'None')]
+        'min_samples_leaf': [best_params.get('min_samples_leaf', 'None')],
+        'max_leaves': [best_params.get('max_leaves', 'None')],
     }
 
     df_params = pd.DataFrame(ordered_params)
@@ -88,32 +87,32 @@ def append_best_params_to_csv(model_name, best_params):
         df_params.to_csv(file_path, mode='a', header=False, index=False)
 
 # Global objective function for optimization
-def objective(trial):
-    n_estimators = trial.suggest_int('n_estimators', 100, 1000)
-    max_depth = trial.suggest_int('max_depth', 3, 15)
-    learning_rate = trial.suggest_float('learning_rate', 0.01, 0.3)
-    subsample = trial.suggest_float('subsample', 0.5, 1.0)
-    colsample_bytree = trial.suggest_float('colsample_bytree', 0.5, 1.0)
-    lambda_ = trial.suggest_float('lambda', 0, 10)
-    alpha = trial.suggest_float('alpha', 0, 10)
-    gamma = trial.suggest_float('gamma', 0, 10)  # New parameter
-    scale_pos_weight = trial.suggest_float('scale_pos_weight', 0.1, 10.0)  # New parameter
-    max_bin = trial.suggest_int('max_bin', 10, 100)  # New parameter
-    tree_method = trial.suggest_categorical('tree_method', ['auto', 'exact', 'approx', 'hist', 'gpu_hist'])  # New parameter
+def objective_xgb(trial):
+    n_estimators = trial.suggest_int('n_estimators', 100, 300)
+    max_depth = trial.suggest_int('max_depth', 5, 25)
+    learning_rate = trial.suggest_float('learning_rate', 0.001, 0.1)
+    subsample = trial.suggest_float('subsample', 0.5, 0.8)
+    colsample_bytree = trial.suggest_float('colsample_bytree', 0.5, 0.8)
+    lambda_ = trial.suggest_float('lambda', 1, 3)
+    alpha = trial.suggest_float('alpha', 0, 1)
+    gamma = trial.suggest_float('gamma', 0, 1)
+    min_child_weight = trial.suggest_int('min_child_weight', 10, 50)  # Use min_child_weight
+    max_leaves = trial.suggest_int('max_leaves', 5, 50)               # Example range
 
-    model = xgb.XGBRegressor(n_estimators=n_estimators,
-                              max_depth=max_depth,
-                              learning_rate=learning_rate,
-                              subsample=subsample,
-                              colsample_bytree=colsample_bytree,
-                              lambda_=lambda_,
-                              alpha=alpha,
-                              gamma=gamma,
-                              scale_pos_weight=scale_pos_weight,
-                              max_bin=max_bin,
-                              tree_method=tree_method,
-                              verbosity=-1,
-                              random_state=state)
+    model = xgb.XGBRegressor(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        learning_rate=learning_rate,
+        subsample=subsample,
+        colsample_bytree=colsample_bytree,
+        lambda_=lambda_,
+        alpha=alpha,
+        gamma=gamma,
+        min_child_weight=min_child_weight,  # Update to min_child_weight
+        max_leaves=max_leaves,
+        verbosity=0,
+        random_state=42
+    )
 
     return evaluate_model(model, X_train, y_train)[0]
 
@@ -122,7 +121,7 @@ def bayesian_optimization_tpe():
     print("Starting Bayesian Optimization with TPE...")
     start_time = time.time()
     study = optuna.create_study(sampler=TPESampler(seed=state))
-    study.optimize(objective, n_trials=iter)
+    study.optimize(objective_xgb, n_trials=iter)
     best_params = study.best_params
     metrics = evaluate_model(xgb.XGBRegressor(**best_params, random_state=state), X_train, y_train)
 
@@ -135,39 +134,13 @@ def bayesian_optimization_gp():
     print("Starting Bayesian Optimization with GP...")
     start_time = time.time()
     study = optuna.create_study(sampler=GPSampler(seed=state))
-    study.optimize(objective, n_trials=iter)
+    study.optimize(objective_xgb, n_trials=iter)
     best_params = study.best_params
     metrics = evaluate_model(xgb.XGBRegressor(**best_params, random_state=state), X_train, y_train)
 
     append_metrics_to_csv('XGBoost_BO_GP', metrics, time.time() - start_time)
     append_best_params_to_csv('XGBoost_BO_GP', best_params)
 
-# CMA-ES Sampler
-def cmaes_optimization():
-    print("Starting CMA-ES Optimization...")
-    start_time = time.time()
-    study = optuna.create_study(sampler=CmaEsSampler(seed=state))
-    study.optimize(objective, n_trials=iter)
-    best_params = study.best_params
-    metrics = evaluate_model(xgb.XGBRegressor(**best_params, random_state=state), X_train, y_train)
-
-    append_metrics_to_csv('XGBoost_BO_CMAES', metrics, time.time() - start_time)
-    append_best_params_to_csv('XGBoost_BO_CMAES', best_params)
-
-# Quasi-Monte Carlo
-def quasi_monte_carlo():
-    print("Starting Quasi-Monte Carlo Optimization...")
-    start_time = time.time()
-    study = optuna.create_study(sampler=QMCSampler(seed=state))
-    study.optimize(objective, n_trials=iter)
-    best_params = study.best_params
-    metrics = evaluate_model(xgb.XGBRegressor(**best_params, random_state=state), X_train, y_train)
-
-    append_metrics_to_csv('XGBoost_BO_QMC', metrics, time.time() - start_time)
-    append_best_params_to_csv('XGBoost_BO_QMC', best_params)
-
 # Running all optimization techniques
 bayesian_optimization_tpe()
 bayesian_optimization_gp()
-cmaes_optimization()
-quasi_monte_carlo()

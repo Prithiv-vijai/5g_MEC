@@ -1,2 +1,0 @@
-Model Name,learning_rate,num_leaves,max_depth,min_data_in_leaf,lambda_l1,lambda_l2,bagging_fraction,feature_fraction,min_split_gain,max_bin
-LightGBM_BO_TPE,90,0.08836982121886393,44,10,0.0006930811553390102,0.020160273529029608,0.9687472872069228,0.9345773511995465,0.05292770457781515,94

@@ -17,7 +17,7 @@ y = data['Resource_Allocation']
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-iter = 500
+iter = 200
 state = 42
 
 # Function to calculate metrics
@@ -67,11 +67,11 @@ def append_best_params_to_csv(model_name, best_params):
         'Model Name': [model_name],
         'n_estimators': [best_params.get('n_estimators', 'None')],
         'max_depth': [best_params.get('max_depth', 'None')],
-        'min_samples_split': [best_params.get('min_samples_split', 'None')],
         'min_samples_leaf': [best_params.get('min_samples_leaf', 'None')],
         'max_features': [best_params.get('max_features', 'None')],
         'bootstrap': [best_params.get('bootstrap', 'None')],
-        'criterion': [best_params.get('criterion', 'None')]
+        'criterion': [best_params.get('criterion', 'None')],
+        'max_leaf_nodes': [best_params.get('max_leaf_nodes', 'None')]
     }
 
     df_params = pd.DataFrame(ordered_params)
@@ -83,23 +83,25 @@ def append_best_params_to_csv(model_name, best_params):
         df_params.to_csv(file_path, mode='a', header=False, index=False)
 
 # Global objective function for optimization
-def objective(trial):
-    n_estimators = trial.suggest_int('n_estimators', 10, 500)
-    max_depth = trial.suggest_int('max_depth', 1, 50)
-    min_samples_split = trial.suggest_int('min_samples_split', 2, 20)
-    min_samples_leaf = trial.suggest_int('min_samples_leaf', 1, 20)
-    max_features = trial.suggest_categorical('max_features', ['auto', 'sqrt', 'log2'])
+def objective_rf(trial):
+    n_estimators = trial.suggest_int('n_estimators', 100, 300)
+    max_depth = trial.suggest_int('max_depth', 5, 25)
+    min_samples_leaf = trial.suggest_int('min_samples_leaf', 10, 50)
+    max_features = trial.suggest_categorical('max_features', ['sqrt', 'log2'])
     bootstrap = trial.suggest_categorical('bootstrap', [True, False])
-    criterion = trial.suggest_categorical('criterion', ['mse', 'mae'])  # MSE or MAE
+    criterion = trial.suggest_categorical('criterion', ['mse', 'mae'])
+    max_leaf_nodes = trial.suggest_int('max_leaf_nodes', 5, 50) 
 
-    model = RandomForestRegressor(n_estimators=n_estimators,
-                                   max_depth=max_depth,
-                                   min_samples_split=min_samples_split,
-                                   min_samples_leaf=min_samples_leaf,
-                                   max_features=max_features,
-                                   bootstrap=bootstrap,
-                                   criterion=criterion,
-                                   random_state=state)
+    model = RandomForestRegressor(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        min_samples_leaf=min_samples_leaf,
+        max_features=max_features,
+        bootstrap=bootstrap,
+        criterion=criterion,
+        max_leaf_nodes=max_leaf_nodes,  
+        random_state=42
+    )
 
     return evaluate_model(model, X_train, y_train)[0]
 
@@ -108,7 +110,7 @@ def bayesian_optimization_tpe():
     print("Starting Bayesian Optimization with TPE...")
     start_time = time.time()
     study = optuna.create_study(sampler=optuna.samplers.TPESampler(seed=state))
-    study.optimize(objective, n_trials=iter)
+    study.optimize(objective_rf, n_trials=iter)  # Update to objective_rf
     best_params = study.best_params
     metrics = evaluate_model(RandomForestRegressor(**best_params, random_state=state), X_train, y_train)
 
@@ -116,5 +118,19 @@ def bayesian_optimization_tpe():
     append_metrics_to_csv('RandomForest_BO_TPE', metrics, time.time() - start_time)
     append_best_params_to_csv('RandomForest_BO_TPE', best_params)
 
-# Running the optimization
+# Bayesian Optimization using Gaussian Process
+def bayesian_optimization_gp():
+    print("Starting Bayesian Optimization with Gaussian Process...")
+    start_time = time.time()
+    study = optuna.create_study(sampler=optuna.samplers.GPESampler(seed=state))
+    study.optimize(objective_rf, n_trials=iter)  # Update to objective_rf
+    best_params = study.best_params
+    metrics = evaluate_model(RandomForestRegressor(**best_params, random_state=state), X_train, y_train)
+
+    # Append best metrics and parameters to CSV
+    append_metrics_to_csv('RandomForest_BO_GP', metrics, time.time() - start_time)
+    append_best_params_to_csv('RandomForest_BO_GP', best_params)
+
+# Running all optimization techniques
 bayesian_optimization_tpe()
+bayesian_optimization_gp()
