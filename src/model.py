@@ -13,10 +13,9 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
 import time  # Import time module for tracking completion time
-
-# Additional libraries for the new models
 import xgboost as xgb
 from sklearn.ensemble import HistGradientBoostingRegressor
+import lightgbm as lgb
 
 # Create the directory if it doesn't exist
 output_dir = '../graphs/model_output/'
@@ -30,19 +29,19 @@ X = df[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 
 y = df['Resource_Allocation']
 
 # Split the dataset into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
 # Define the models grouped by type
 model_groups = {
     'Regression Models': {
         'Linear Regression': LinearRegression(),
-        'Ridge Regression': Ridge(max_iter=10000),
-        'Lasso Regression': Lasso(max_iter=10000),
-        'Elastic Net': ElasticNet(max_iter=10000),
-        'Bayesian Ridge': BayesianRidge(),
-        'Polynomial Regression': make_pipeline(PolynomialFeatures(degree=2), LinearRegression()),
-        'SVR': SVR(),
-        'MLP Regressor': MLPRegressor(max_iter=10000, random_state=42),
+        'Ridge Regression': Ridge(max_iter=10000)
+        # 'Lasso Regression': Lasso(max_iter=10000),
+        # 'Elastic Net': ElasticNet(max_iter=10000),
+        # 'Bayesian Ridge': BayesianRidge(),
+        # 'Polynomial Regression': make_pipeline(PolynomialFeatures(degree=2), LinearRegression()),
+        # 'SVR': SVR(),
+        # 'MLP Regressor': MLPRegressor(max_iter=10000, random_state=42),
     },
     'Tree-Based Models': {
         'Decision Tree': DecisionTreeRegressor(random_state=42),
@@ -52,7 +51,8 @@ model_groups = {
         'Gradient Boosting': GradientBoostingRegressor(random_state=42),
         'AdaBoost': AdaBoostRegressor(random_state=42),
         'XGBoost': xgb.XGBRegressor(random_state=42),
-        'Hgbrt': HistGradientBoostingRegressor(random_state=42)
+        'Hgbrt': HistGradientBoostingRegressor(random_state=42),
+        'LightGBM': lgb.LGBMRegressor(random_state=42)
     }
 }
 
