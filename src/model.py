@@ -35,13 +35,13 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 model_groups = {
     'Regression Models': {
         'Linear Regression': LinearRegression(),
-        'Ridge Regression': Ridge(max_iter=10000)
-        # 'Lasso Regression': Lasso(max_iter=10000),
-        # 'Elastic Net': ElasticNet(max_iter=10000),
-        # 'Bayesian Ridge': BayesianRidge(),
-        # 'Polynomial Regression': make_pipeline(PolynomialFeatures(degree=2), LinearRegression()),
-        # 'SVR': SVR(),
-        # 'MLP Regressor': MLPRegressor(max_iter=10000, random_state=42),
+        'Ridge Regression': Ridge(),
+        'Lasso Regression': Lasso(),
+        'Elastic Net': ElasticNet(),
+        'Bayesian Ridge': BayesianRidge(),
+        'Polynomial Regression': make_pipeline(PolynomialFeatures(degree=3), LinearRegression()),
+        'SVR': SVR(),
+        'MLP Regressor': MLPRegressor(random_state=42),
     },
     'Tree-Based Models': {
         'Decision Tree': DecisionTreeRegressor(random_state=42),

@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-import lightgbm as lgb
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
+from sklearn.ensemble import HistGradientBoostingRegressor
 import os
 import time
 import optuna
@@ -18,7 +18,7 @@ y = data['Resource_Allocation']
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-iter = 200
+iter = 500
 state = 42
 
 # Function to calculate metrics
@@ -56,30 +56,29 @@ def evaluate_model(model, X, y, cv=5):
     mean_mse = -scores.mean()
     model.fit(X, y)
     y_pred = model.predict(X)
-    return calculate_metrics(y, y_pred)  # Return metrics based on predictions
+    return calculate_metrics(y, y_pred)
 
 # Append best parameters to CSV
 def append_best_params_to_csv(model_name, best_params):
-    for key in best_params:
-        if best_params[key] is None:
-            best_params[key] = 'None'
+    # Normalize best_params to ensure 'None' is recorded as a string
+    normalized_params = {key: (value if value is not None else 'None') for key, value in best_params.items()}
 
+    # Create a dictionary for ordered parameters
     ordered_params = {
         'Model Name': [model_name],
-        'num_leaves': [best_params.get('num_leaves', 'None')],
-        'n_estimators': [best_params.get('n_estimators', 'None')],  # Added n_estimators
-        'learning_rate': [best_params.get('learning_rate', 'None')],
-        'max_depth': [best_params.get('max_depth', 'None')],
-        'min_data_in_leaf': [best_params.get('min_data_in_leaf', 'None')],
-        'lambda_l1': [best_params.get('lambda_l1', 'None')],
-        'lambda_l2': [best_params.get('lambda_l2', 'None')],
-        'bagging_fraction': [best_params.get('bagging_fraction', 'None')],
-        'feature_fraction': [best_params.get('feature_fraction', 'None')],
+        'l2_regularization': [normalized_params.get('l2_regularization', 'None')],
+        'learning_rate': [normalized_params.get('learning_rate', 'None')],
+        'max_depth': [normalized_params.get('max_depth', 'None')],
+        'max_iter': [normalized_params.get('max_iter', 'None')],
+        'max_leaf_nodes': [normalized_params.get('max_leaf_nodes', 'None')],
+        'min_samples_leaf': [normalized_params.get('min_samples_leaf', 'None')],
     }
 
+    # Convert to DataFrame
     df_params = pd.DataFrame(ordered_params)
-    file_path = '../data/light_gbm_best_params.csv'
+    file_path = '../data/hgbrt_best_params.csv'
 
+    # Append or create CSV file
     if not os.path.isfile(file_path):
         df_params.to_csv(file_path, mode='w', header=True, index=False)
     else:
@@ -87,61 +86,67 @@ def append_best_params_to_csv(model_name, best_params):
 
 # Global objective function
 def objective(trial):
-    n_estimators = trial.suggest_int('n_estimators', 100, 300) 
-    learning_rate = trial.suggest_float('learning_rate', 0.001, 0.1)
-    num_leaves = trial.suggest_int('num_leaves', 5, 50)  
-    max_depth = trial.suggest_int('max_depth', 5, 25) 
-    min_data_in_leaf = trial.suggest_int('min_data_in_leaf', 10, 50)
-    lambda_l1 = trial.suggest_float('lambda_l1', 0, 1)
-    lambda_l2 = trial.suggest_float('lambda_l2', 1, 3)
-    bagging_fraction = trial.suggest_float('bagging_fraction', 0.6, 1.0) 
-    feature_fraction = trial.suggest_float('feature_fraction', 0.6, 1.0)  
+    learning_rate = trial.suggest_float('learning_rate', 0.05, 0.1)
+    max_iter = trial.suggest_int('max_iter', 100, 250)
+    max_leaf_nodes = trial.suggest_int('max_leaf_nodes', 5, 40)
+    max_depth = trial.suggest_int('max_depth', 5, 20)
+    min_samples_leaf = trial.suggest_int('min_samples_leaf', 25, 75)
+    l2_regularization = trial.suggest_float('l2_regularization', 3, 7)
 
-    model = lgb.LGBMRegressor(
-        n_estimators=n_estimators,  # Added n_estimators here
+    model = HistGradientBoostingRegressor(
         random_state=42,
         learning_rate=learning_rate,
-        num_leaves=num_leaves,
+        max_iter=max_iter,
+        max_leaf_nodes=max_leaf_nodes,
         max_depth=max_depth,
-        min_data_in_leaf=min_data_in_leaf,
-        lambda_l1=lambda_l1,
-        lambda_l2=lambda_l2,
-        bagging_fraction=bagging_fraction,
-        feature_fraction=feature_fraction,
-        verbosity=-1  
+        min_samples_leaf=min_samples_leaf,
+        l2_regularization=l2_regularization,
     )
 
     return evaluate_model(model, X_train, y_train)[0]
 
-# LightGBM Optimization Techniques Implementations
-
-# Bayesian Optimization using TPE
+# Optimization Functions
 def bayesian_optimization_tpe():
     print("Starting Bayesian Optimization with TPE...")
+
     start_time = time.time()
     study = optuna.create_study(sampler=TPESampler(seed=state))
     study.optimize(objective, n_trials=iter)
     best_params = study.best_params
-    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42), X_train, y_train)
+    metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=42), X_train, y_train)
 
-    # Append best metrics and parameters to CSV
-    append_metrics_to_csv('LightGBM_BO_TPE', metrics, time.time() - start_time)
-    append_best_params_to_csv('LightGBM_BO_TPE', best_params)
+    append_metrics_to_csv('Hgbrt_BO_TPE', metrics, time.time() - start_time)
+    append_best_params_to_csv('Hgbrt_BO_TPE', best_params)
 
-# Bayesian Optimization using Gaussian Process
 def bayesian_optimization_gp():
     print("Starting Bayesian Optimization with GP...")
+
     start_time = time.time()
     study = optuna.create_study(sampler=GPSampler(seed=state))
     study.optimize(objective, n_trials=iter)
     best_params = study.best_params
-    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42), X_train, y_train)
+    metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=42), X_train, y_train)
 
-    append_metrics_to_csv('LightGBM_BO_GP', metrics, time.time() - start_time)
-    append_best_params_to_csv('LightGBM_BO_GP', best_params)
+    append_metrics_to_csv('Hgbrt_BO_GP', metrics, time.time() - start_time)
+    append_best_params_to_csv('Hgbrt_BO_GP', best_params)
+    
+def bayesian_optimization_cmaes():
+    print("Starting Bayesian Optimization with CMAES...")
+
+    start_time = time.time()
+    study = optuna.create_study(sampler=CmaEsSampler(seed=state))
+    study.optimize(objective, n_trials=iter)
+    best_params = study.best_params
+    metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=42), X_train, y_train)
+
+    append_metrics_to_csv('Hgbrt_BO_CMAES', metrics, time.time() - start_time)
+    append_best_params_to_csv('Hgbrt_BO_CMAES', best_params)
 
 
+# Run the optimization functions
+if __name__ == '__main__':
+    bayesian_optimization_tpe()
+    bayesian_optimization_gp()
+    bayesian_optimization_cmaes()
 
-# Running all optimization techniques
-bayesian_optimization_tpe()
-bayesian_optimization_gp()
+

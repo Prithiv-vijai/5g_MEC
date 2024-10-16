@@ -6,7 +6,7 @@ file_path = '../data/model_performance_metrics.csv'
 metrics_df = pd.read_csv(file_path)
 
 # Filter HGBRT rows
-hgbrt_df = metrics_df[metrics_df['Model Name'].str.startswith(('Hgbrt'))]
+hgbrt_df = metrics_df[metrics_df['Model Name'].str.contains(('500'))]
 
 # Define metrics to compare, excluding 'Adjusted R2'
 metrics = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
@@ -14,11 +14,11 @@ additional_metric = 'Completion_Time'
 
 # Custom y-limits for each metric
 y_limits = {
-    'MSE': (1, 1.7),    # Adjust the limits based on your dataset
-    'RMSE': (1, 1.3),
+    'MSE': (0.6, 1.7),    # Adjust the limits based on your dataset
+    'RMSE': (0.5, 1.3),
     'MAE': (0.6, 1.0),
     'R2': (0.96, 1),
-    'MAPE': (0.010, 0.0135),
+    'MAPE': (0.0, 0.0135),
     'Completion_Time': (0, hgbrt_df['Completion_Time'].max() * 1.1)  # Adjust based on actual data
 }
 
@@ -96,4 +96,4 @@ for index, row in hgbrt_df.iterrows():
     print(f"  {additional_metric}: {row[additional_metric]:.4f}")
 
 # Save the plot
-plt.savefig('../graphs/model_output/hgbrt_all_searches_comparison.png')
+plt.savefig('../graphs/model_output/all_searches_comparison.png')
