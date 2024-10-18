@@ -7,6 +7,7 @@ import os
 import time
 import optuna
 from optuna.samplers import TPESampler, GPSampler, CmaEsSampler
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
 # Load the dataset from a CSV file
 data = pd.read_csv('../data/augmented_dataset.csv')
@@ -18,7 +19,7 @@ y = data['Resource_Allocation']
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-iter = 500
+iter = 1000
 state = 42
 
 # Function to calculate metrics
@@ -86,12 +87,12 @@ def append_best_params_to_csv(model_name, best_params):
 # Global objective function
 def objective(trial):
     n_estimators = trial.suggest_int('n_estimators', 100, 250) 
-    learning_rate = trial.suggest_float('learning_rate', 0.05, 0.1)
+    learning_rate = trial.suggest_float('learning_rate', 0.05, 0.09)
     num_leaves = trial.suggest_int('num_leaves', 5, 40)  
     max_depth = trial.suggest_int('max_depth', 5, 20) 
     min_data_in_leaf = trial.suggest_int('min_data_in_leaf', 25, 75)
-    lambda_l1 = trial.suggest_float('lambda_l1', 3, 7)
-    lambda_l2 = trial.suggest_float('lambda_l2', 3, 7)
+    lambda_l1 = trial.suggest_float('lambda_l1', 1, 3)
+    lambda_l2 = trial.suggest_float('lambda_l2', 1, 3)
 
     model = lgb.LGBMRegressor(
         n_estimators=n_estimators,  
@@ -146,12 +147,69 @@ def bayesian_optimization_cmaes():
 
     append_metrics_to_csv('LightGBM_BO_CMAES', metrics, time.time() - start_time)
     append_best_params_to_csv('LightGBM_BO_CMAES', best_params)
+    
+# Function to run Grid Search
+def grid_search_optimization():
+    print("Starting Grid Search Optimization...")
+    start_time = time.time()
+    
+    param_grid = {
+        'n_estimators': [100, 150],  # Three values for each parameter
+        'learning_rate': [ 0.07, 0.09],
+        'num_leaves': [5, 20, ],
+        'max_depth': [12, 20],
+        'min_data_in_leaf': [ 50, 75],
+        'lambda_l1': [ 2, 3],
+        'lambda_l2': [ 2, 3]
+    }
+    
+    model = lgb.LGBMRegressor(random_state=42, verbosity=-1)
+    grid_search = GridSearchCV(model, param_grid, cv=5, scoring='neg_mean_squared_error', verbose=1, n_jobs=-1)
+    grid_search.fit(X_train, y_train)
+    
+    best_params = grid_search.best_params_
+    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42), X_train, y_train)
+    
+    # Append results to CSV
+    append_metrics_to_csv('LightGBM_Grid_Search', metrics, time.time() - start_time)
+
+# Function to run Random Search
+def random_search_optimization():
+    print("Starting Random Search Optimization...")
+    start_time = time.time()
+    
+    param_distributions = {
+        'n_estimators': [100, 150, 200, 225],  # Five values for each parameter
+        'learning_rate': [ 0.07, 0.08, 0.09],
+        'num_leaves': [5, 10, 20, 30],
+        'max_depth': [5, 8, 12, 16],
+        'min_data_in_leaf': [35, 50, 65, 75],
+        'lambda_l1': [ 2, 2.5, 3],
+        'lambda_l2': [ 2, 2.5, 3]
+    }
+    
+    model = lgb.LGBMRegressor(random_state=42, verbosity=-1)
+    random_search = RandomizedSearchCV(
+        model, param_distributions, n_iter=50, cv=5,
+        scoring='neg_mean_squared_error', verbose=1, n_jobs=-1, random_state=state
+    )
+    random_search.fit(X_train, y_train)
+    
+    best_params = random_search.best_params_
+    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42), X_train, y_train)
+    
+    # Append results to CSV
+    append_metrics_to_csv('LightGBM_Random_Search', metrics, time.time() - start_time)
+
+# Running Grid Search and Random Search optimizations
+grid_search_optimization()
+random_search_optimization()
 
 
 
 
 # Running all optimization techniques
-bayesian_optimization_tpe()
-bayesian_optimization_gp()
-bayesian_optimization_cmaes()
+# bayesian_optimization_tpe()
+# bayesian_optimization_gp()
+# bayesian_optimization_cmaes()
 

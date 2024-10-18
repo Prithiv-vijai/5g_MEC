@@ -92,8 +92,8 @@ results_df = pd.DataFrame(results).T.reset_index(drop=True)
 # Save the results DataFrame to a CSV file
 results_df.to_csv('../data/model_performance_metrics.csv', index=False)
 
-# Define metrics to plot, excluding 'Adjusted R2'
-metrics_to_plot = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Completion_Time']  # Include 'Completion_Time' for plotting
+# Define metrics to plot, limited to MSE, MAE, and R2
+metrics_to_plot = ['MSE', 'MAE', 'R2']  # Restrict to only the specified metrics
 
 # Function to add rank labels
 def add_rank_labels(ax, data, metric):
@@ -135,32 +135,6 @@ for group_name, models in model_groups.items():
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, f'{group_name.lower().replace(" ", "_")}_metrics_comparison(augmented).png'))
-
-# Visualize the predicted vs actual values
-for group_name, models in model_groups.items():
-    group_predictions = {name: predictions[(group_name, name)] for name in models.keys()}
-
-    num_models = len(models)
-    num_cols = min(num_models, 4)  # Limit to a maximum of 4 columns for better layout
-    num_rows = (num_models + num_cols - 1) // num_cols  # Calculate rows needed
-
-    fig, axes = plt.subplots(num_rows, num_cols, figsize=(24, num_rows * 6))
-    axes = axes.ravel()
-
-    for i, (name, y_pred) in enumerate(group_predictions.items()):
-        ax = axes[i]
-        sns.scatterplot(x=y_test, y=y_pred, ax=ax)
-        ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
-        ax.set_title(f'{name} Predicted vs Actual ({group_name})')
-        ax.set_xlabel('Actual')
-        ax.set_ylabel('Predicted')
-
-    # Hide any unused subplots
-    for j in range(num_models, len(axes)):
-        fig.delaxes(axes[j])
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f'{group_name.lower().replace(" ", "_")}_predicted_vs_actual(augmented).png'))
 
 # Find and print the best values for each metric
 best_models = {metric: min(results.items(), key=lambda x: x[1][metric]) for metric in ['MSE', 'RMSE', 'MAE', 'MAPE']}

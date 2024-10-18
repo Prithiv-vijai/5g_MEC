@@ -13,13 +13,13 @@ def annotate_plot(ax, data, metric):
     bars = ax.patches
     for i, (index, row) in enumerate(data.iterrows()):
         # Format the values
-        if metric in ['R2', 'Adjusted R2', 'MAPE']:
+        if metric in ['R2']:
             value = f'{row[metric]:.4f}'
         else:
             value = f'{row[metric]:.2f}'
         
         # Calculate annotation positions
-        annotation_height = row[metric] + (0.05 if metric != 'MAPE' else 0.01)
+        annotation_height = row[metric] + (0.05 if metric != 'R2' else 0.01)
         # Annotate with values and rank
         ax.text(i, annotation_height, value, ha='center', va='bottom')
         # Highlight the top model
@@ -29,36 +29,32 @@ def annotate_plot(ax, data, metric):
         else:
             bars[i].set_facecolor('#4c72b0')
 
-# Get top 5 models for each metric and add ranking
+# Get top 5 models for each selected metric and add ranking
+selected_metrics = ['MSE', 'MAE', 'R2']
 top_models = pd.concat([
     df.nsmallest(5, 'MSE').assign(Metric='MSE'),
-    df.nsmallest(5, 'RMSE').assign(Metric='RMSE'),
     df.nsmallest(5, 'MAE').assign(Metric='MAE'),
     df.nlargest(5, 'R2').assign(Metric='R2'),
-    df.nsmallest(5, 'MAPE').assign(Metric='MAPE'),
 ])
 
 # Add ranking column
 top_models['Rank'] = top_models.groupby('Metric').cumcount() + 1
 
 # Plotting
-fig, axs = plt.subplots(2, 3, figsize=(24, 10))  # Increased figure size
+fig, axs = plt.subplots(1, 3, figsize=(24, 6))  # Adjusted figure size
 
-metrics = ['MSE', 'RMSE', 'MAE', 'R2', 'MAPE']
-titles = ['Mean Squared Error (MSE)', 'Root Mean Squared Error (RMSE)', 'Mean Absolute Error (MAE)', 
-          'R-squared (R2)', 'Mean Absolute Percentage Error (MAPE)']
+metrics = ['MSE', 'MAE', 'R2']
+titles = ['Mean Squared Error (MSE)', 'Mean Absolute Error (MAE)', 'R-squared (R2)']
 
 # Custom y-axis limits for each metric
 y_limits = {
-    'MSE': (0, top_models['MSE'].max() + 1),
-    'RMSE': (0, 2),
+    'MSE': (0, top_models['MSE'].max() + 0.5),
     'MAE': (0, 1.5),
     'R2': (0, 1.25),
-    'MAPE': (0, 0.05),  # Increased limit for better visibility
 }
 
 for i, metric in enumerate(metrics):
-    ax = axs[i // 3, i % 3]
+    ax = axs[i]
     metric_data = top_models[top_models['Metric'] == metric]
     sns.barplot(data=metric_data, x='Model Name', y=metric, hue='Metric', ax=ax, dodge=False, palette=['lightblue', 'red'])
     ax.set_title(titles[i])
@@ -75,9 +71,9 @@ for i, metric in enumerate(metrics):
     # Annotate the plot
     annotate_plot(ax, metric_data, metric)
 
-fig.delaxes(axs[1, 2])
-
 # Adjust spacing between subplots
-fig.subplots_adjust(hspace=0.4, wspace=0.3)  # Increase space between rows and columns
+fig.subplots_adjust(hspace=0.4, wspace=0.3, bottom=0.25)  # Added bottom margin to avoid cutting off labels
 
-plt.savefig('../graphs/model_output/top_5_models_with_rank.png')
+# Save the figure
+plt.savefig('../graphs/model_output/top_5_models.png')
+

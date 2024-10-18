@@ -7,6 +7,7 @@ import os
 import time
 import optuna
 from optuna.samplers import TPESampler, GPSampler ,CmaEsSampler
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
 # Load the dataset from a CSV file
 data = pd.read_csv('../data/augmented_dataset.csv')
@@ -89,9 +90,9 @@ def objective_xgb(trial):
     n_estimators = trial.suggest_int('n_estimators', 100, 250)
     max_depth = trial.suggest_int('max_depth', 5, 20)
     learning_rate = trial.suggest_float('learning_rate', 0.05, 0.1)
-    lambda_ = trial.suggest_float('lambda', 2, 5)
-    alpha = trial.suggest_float('alpha', 2, 5)
-    gamma = trial.suggest_float('gamma', 2, 5)
+    lambda_ = trial.suggest_float('lambda', 1, 3)
+    alpha = trial.suggest_float('alpha', 1, 3)
+    gamma = trial.suggest_float('gamma', 0, 1)
     min_child_weight = trial.suggest_int('min_child_weight', 25, 75)  
     max_leaves = trial.suggest_int('max_leaves', 5, 40)              
 
@@ -147,9 +148,83 @@ def bayesian_optimization_cmaes():
 
     append_metrics_to_csv('XGBoost_BO_CMAES', metrics, time.time() - start_time)
     append_best_params_to_csv('XGBoost_BO_CMAES', best_params)
+    
+# Grid Search for XGBoost
+def grid_search_xgboost():
+    print("Starting Grid Search...")
+    start_time = time.time()
+    param_grid = {
+        'n_estimators': [100, 200],
+        'max_depth': [ 10, 15],
+        'learning_rate': [ 0.1, 0.15],
+        'lambda': [1, 2],
+        'alpha': [1, 2],
+        'gamma': [0, 0.5],
+        'min_child_weight': [25, 50],
+        'max_leaves': [10, 20]
+    }
+
+    model = xgb.XGBRegressor(random_state=state)
+
+    grid_search = GridSearchCV(
+        estimator=model,
+        param_grid=param_grid,
+        scoring='neg_mean_squared_error',
+        cv=5,
+        n_jobs=-1,
+        verbose=1
+    )
+
+    grid_search.fit(X_train, y_train)
+    best_params = grid_search.best_params_
+    metrics = calculate_metrics(y_test, grid_search.predict(X_test))
+
+    # Append metrics and parameters to CSV
+    append_metrics_to_csv('XGBoost_GridSearch', metrics, time.time() - start_time)
+    append_best_params_to_csv('XGBoost_GridSearch', best_params)
+
+# Randomized Search for XGBoost
+def randomized_search_xgboost():
+    print("Starting Randomized Search...")
+    start_time = time.time()
+    param_distributions = {
+        'n_estimators': [100, 150,170,300],
+        'max_depth': [10, 12, 15],
+        'learning_rate': [ 0.15, 0.2],
+        'lambda': [ 1,2,3],
+        'alpha': [1,2,3],
+        'gamma': [0.5, 1],
+        'min_child_weight':[10, 50, 65, 75],
+        'max_leaves': [5,10, 15, 20]
+    }
+
+    model = xgb.XGBRegressor(random_state=state)
+
+    randomized_search = RandomizedSearchCV(
+        estimator=model,
+        param_distributions=param_distributions,
+        scoring='neg_mean_squared_error',
+        cv=5,
+        n_iter=50,  # Number of parameter settings sampled
+        n_jobs=-1,
+        random_state=state,
+        verbose=1
+    )
+
+    randomized_search.fit(X_train, y_train)
+    best_params = randomized_search.best_params_
+    metrics = calculate_metrics(y_test, randomized_search.predict(X_test))
+
+    # Append metrics and parameters to CSV
+    append_metrics_to_csv('XGBoost_RandomizedSearch', metrics, time.time() - start_time)
+    append_best_params_to_csv('XGBoost_RandomizedSearch', best_params)
+
+# Running Grid Search and Randomized Search
+grid_search_xgboost()
+randomized_search_xgboost()
 
 # Running all optimization techniques
-bayesian_optimization_tpe()
-bayesian_optimization_gp()
-bayesian_optimization_cmaes()
+# bayesian_optimization_tpe()
+# bayesian_optimization_gp()
+# bayesian_optimization_cmaes()
 

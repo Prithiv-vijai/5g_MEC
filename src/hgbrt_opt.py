@@ -7,6 +7,7 @@ import os
 import time
 import optuna
 from optuna.samplers import TPESampler, GPSampler, CmaEsSampler
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
 # Load the dataset from a CSV file
 data = pd.read_csv('../data/augmented_dataset.csv')
@@ -141,12 +142,65 @@ def bayesian_optimization_cmaes():
 
     append_metrics_to_csv('Hgbrt_BO_CMAES', metrics, time.time() - start_time)
     append_best_params_to_csv('Hgbrt_BO_CMAES', best_params)
+    
+# Grid Search function
+def grid_search():
+    print("Starting Grid Search...")
+
+    start_time = time.time()
+    param_grid = {
+        'learning_rate': [0.05, 0.1],
+        'max_iter': [100, 150],
+        'max_leaf_nodes': [20, 30],
+        'max_depth': [10, 15],
+        'min_samples_leaf': [30, 40],
+        'l2_regularization': [2,3]
+    }
+    model = HistGradientBoostingRegressor(random_state=42)
+    grid_search = GridSearchCV(model, param_grid, scoring='neg_mean_squared_error', cv=5, n_jobs=-1)
+    grid_search.fit(X_train, y_train)
+
+    best_params = grid_search.best_params_
+    best_model = grid_search.best_estimator_
+    y_pred = best_model.predict(X_test)
+    metrics = calculate_metrics(y_test, y_pred)
+
+    append_metrics_to_csv('Hgbrt_GridSearch', metrics, time.time() - start_time)
+
+
+# Random Search function
+def random_search():
+    print("Starting Random Search...")
+
+    start_time = time.time()
+    param_dist = {
+        'learning_rate': np.linspace(0.01, 0.2, 20),
+        'max_iter': np.arange(100, 300, 50),
+        'max_leaf_nodes': np.arange(10, 50, 5),
+        'max_depth': np.arange(5, 20, 3),
+        'min_samples_leaf': np.arange(10, 100, 50),
+        'l2_regularization': np.linspace(0, 1, 2)
+    }
+    model = HistGradientBoostingRegressor(random_state=42)
+    random_search = RandomizedSearchCV(model, param_distributions=param_dist, n_iter=100, scoring='neg_mean_squared_error', cv=5, n_jobs=-1, random_state=42)
+    random_search.fit(X_train, y_train)
+
+    best_params = random_search.best_params_
+    best_model = random_search.best_estimator_
+    y_pred = best_model.predict(X_test)
+    metrics = calculate_metrics(y_test, y_pred)
+
+    append_metrics_to_csv('Hgbrt_RandomSearch', metrics, time.time() - start_time)
+
+
 
 
 # Run the optimization functions
 if __name__ == '__main__':
-    bayesian_optimization_tpe()
-    bayesian_optimization_gp()
-    bayesian_optimization_cmaes()
+    # bayesian_optimization_tpe()
+    # bayesian_optimization_gp()
+    grid_search()
+    random_search()
+    
 
 

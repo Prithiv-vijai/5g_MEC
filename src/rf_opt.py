@@ -6,6 +6,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, m
 import os
 import time
 import optuna
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
 # Load the dataset from a CSV file
 data = pd.read_csv('../data/augmented_dataset.csv')
@@ -81,10 +82,10 @@ def append_best_params_to_csv(model_name, best_params):
 
 # Global objective function for optimization
 def objective_rf(trial):
-    n_estimators = trial.suggest_int('n_estimators', 100, 250)
-    max_depth = trial.suggest_int('max_depth', 5, 20)
-    min_samples_leaf = trial.suggest_int('min_samples_leaf', 25, 75)
-    max_leaf_nodes = trial.suggest_int('max_leaf_nodes', 5, 40) 
+    n_estimators = trial.suggest_int('n_estimators', 200, 500)
+    max_depth = trial.suggest_int('max_depth', 5, 25)
+    min_samples_leaf = trial.suggest_int('min_samples_leaf', 5, 50)
+    max_leaf_nodes = trial.suggest_int('max_leaf_nodes', 5, 50) 
 
     model = RandomForestRegressor(
         n_estimators=n_estimators,
@@ -134,9 +135,60 @@ def bayesian_optimization_cmaes():
     # Append best metrics and parameters to CSV
     append_metrics_to_csv('RandomForest_BO_CMAES', metrics, time.time() - start_time)
     append_best_params_to_csv('RandomForest_BO_CMAES', best_params)
+    
+    
+# Function to perform Grid Search
+def grid_search_optimization():
+    print("Starting Grid Search Optimization...")
+    start_time = time.time()
+    
+    param_grid = {
+        'n_estimators': [ 300, 400],
+        'max_depth': [10, 15,],
+        'min_samples_leaf': [ 5, 10],
+        'max_leaf_nodes': [30, 40]
+    }
+    
+    model = RandomForestRegressor(random_state=state)
+    grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1)
+    grid_search.fit(X_train, y_train)
+    
+    best_params = grid_search.best_params_
+    y_pred = grid_search.predict(X_train)
+    metrics = calculate_metrics(y_train, y_pred)
+
+    # Append best metrics and parameters to CSV
+    append_metrics_to_csv('RandomForest_Grid_Search', metrics, time.time() - start_time)
+
+# Function to perform Random Search
+def random_search_optimization():
+    print("Starting Random Search Optimization...")
+    start_time = time.time()
+    
+    param_distributions = {
+        'n_estimators': np.arange(200, 500, 100),
+        'max_depth': np.arange(5, 26, 5),
+        'min_samples_leaf': np.arange(10, 51, 5),
+        'max_leaf_nodes': np.arange(10, 20, 5)
+    }
+    
+    model = RandomForestRegressor(random_state=state)
+    random_search = RandomizedSearchCV(estimator=model, param_distributions=param_distributions, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, random_state=state)
+    random_search.fit(X_train, y_train)
+    
+    best_params = random_search.best_params_
+    y_pred = random_search.predict(X_train)
+    metrics = calculate_metrics(y_train, y_pred)
+
+    # Append best metrics and parameters to CSV
+    append_metrics_to_csv('RandomForest_Random_Search', metrics, time.time() - start_time)
+
+# Running the Grid Search and Random Search optimizations
+# grid_search_optimization()
+random_search_optimization()
 
 # Running all optimization techniques
-bayesian_optimization_tpe()
-bayesian_optimization_gp()
-bayesian_optimization_cmaes()
+# bayesian_optimization_tpe()
+# bayesian_optimization_gp()
+# bayesian_optimization_cmaes()
 
