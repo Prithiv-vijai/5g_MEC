@@ -19,7 +19,7 @@ y = data['Resource_Allocation']
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-iter = 1000
+iter = 500
 state = 42
 
 # Function to calculate metrics
@@ -52,12 +52,10 @@ def append_metrics_to_csv(model_name, metrics, completion_time, model_category='
         df_metrics.to_csv(file_path, mode='a', header=False, index=False, columns=column_order)
 
 # Function to evaluate the model with cross-validation
-def evaluate_model(model, X, y, cv=5):
-    scores = cross_val_score(model, X, y, cv=cv, scoring='neg_mean_squared_error')
-    mean_mse = -scores.mean()
-    model.fit(X, y)
-    y_pred = model.predict(X)
-    return calculate_metrics(y, y_pred)  # Return metrics based on predictions
+def evaluate_model(model):
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    return calculate_metrics(y_test, y_pred)  # Return metrics based on predictions
 
 # Append best parameters to CSV
 def append_best_params_to_csv(model_name, best_params):
@@ -68,7 +66,7 @@ def append_best_params_to_csv(model_name, best_params):
     ordered_params = {
         'Model Name': [model_name],
         'num_leaves': [best_params.get('num_leaves', 'None')],
-        'n_estimators': [best_params.get('n_estimators', 'None')],  # Added n_estimators
+        'n_estimators': [best_params.get('n_estimators', 'None')],
         'learning_rate': [best_params.get('learning_rate', 'None')],
         'max_depth': [best_params.get('max_depth', 'None')],
         'min_data_in_leaf': [best_params.get('min_data_in_leaf', 'None')],
@@ -86,13 +84,13 @@ def append_best_params_to_csv(model_name, best_params):
 
 # Global objective function
 def objective(trial):
-    n_estimators = trial.suggest_int('n_estimators', 100, 250) 
-    learning_rate = trial.suggest_float('learning_rate', 0.05, 0.09)
-    num_leaves = trial.suggest_int('num_leaves', 5, 40)  
+    n_estimators = trial.suggest_int('n_estimators', 50, 150) 
+    learning_rate = trial.suggest_float('learning_rate', 0.05, 0.15)
+    num_leaves = trial.suggest_int('num_leaves', 20, 40)  
     max_depth = trial.suggest_int('max_depth', 5, 20) 
-    min_data_in_leaf = trial.suggest_int('min_data_in_leaf', 25, 75)
-    lambda_l1 = trial.suggest_float('lambda_l1', 1, 3)
-    lambda_l2 = trial.suggest_float('lambda_l2', 1, 3)
+    min_data_in_leaf = trial.suggest_int('min_data_in_leaf', 1, 10)
+    lambda_l1 = trial.suggest_float('lambda_l1', 2, 3)
+    lambda_l2 = trial.suggest_float('lambda_l2', 2, 3)
 
     model = lgb.LGBMRegressor(
         n_estimators=n_estimators,  
@@ -106,7 +104,10 @@ def objective(trial):
         verbosity=-1  
     )
 
-    return evaluate_model(model, X_train, y_train)[0]
+    # Return the cross-validated mean MSE as the objective value for optimization
+    neg_mse_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error')
+    mean_mse = -neg_mse_scores.mean()
+    return mean_mse
 
 # LightGBM Optimization Techniques Implementations
 
@@ -117,7 +118,7 @@ def bayesian_optimization_tpe():
     study = optuna.create_study(sampler=TPESampler(seed=state))
     study.optimize(objective, n_trials=iter)
     best_params = study.best_params
-    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42), X_train, y_train)
+    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42))
 
     # Append best metrics and parameters to CSV
     append_metrics_to_csv('LightGBM_BO_TPE', metrics, time.time() - start_time)
@@ -130,7 +131,7 @@ def bayesian_optimization_gp():
     study = optuna.create_study(sampler=GPSampler(seed=state))
     study.optimize(objective, n_trials=iter)
     best_params = study.best_params
-    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42), X_train, y_train)
+    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42))
 
     append_metrics_to_csv('LightGBM_BO_GP', metrics, time.time() - start_time)
     append_best_params_to_csv('LightGBM_BO_GP', best_params)
@@ -154,21 +155,20 @@ def grid_search_optimization():
     start_time = time.time()
     
     param_grid = {
-        'n_estimators': [100, 150],  # Three values for each parameter
-        'learning_rate': [ 0.07, 0.09],
-        'num_leaves': [5, 20, ],
-        'max_depth': [12, 20],
-        'min_data_in_leaf': [ 50, 75],
-        'lambda_l1': [ 2, 3],
-        'lambda_l2': [ 2, 3]
+        'n_estimators': [50, 150],  # Within the range of 50 to 150
+        'learning_rate': [0.05, 0.15],  # Within the range of 0.05 to 0.15
+        'num_leaves': [20, 40],  # Within the range of 20 to 40
+        'max_depth': [5,  20],  # Within the range of 5 to 20
+        'min_data_in_leaf': [1, 10],  # Within the range of 1 to 10
+        'lambda_l1': [2.0, 3.0],  # Within the range of 2 to 3
+        'lambda_l2': [2.0, 3.0]   # Within the range of 2 to 3
     }
-    
     model = lgb.LGBMRegressor(random_state=42, verbosity=-1)
     grid_search = GridSearchCV(model, param_grid, cv=5, scoring='neg_mean_squared_error', verbose=1, n_jobs=-1)
     grid_search.fit(X_train, y_train)
     
     best_params = grid_search.best_params_
-    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42), X_train, y_train)
+    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42))
     
     # Append results to CSV
     append_metrics_to_csv('LightGBM_Grid_Search', metrics, time.time() - start_time)
@@ -179,37 +179,29 @@ def random_search_optimization():
     start_time = time.time()
     
     param_distributions = {
-        'n_estimators': [100, 150, 200, 225],  # Five values for each parameter
-        'learning_rate': [ 0.07, 0.08, 0.09],
-        'num_leaves': [5, 10, 20, 30],
-        'max_depth': [5, 8, 12, 16],
-        'min_data_in_leaf': [35, 50, 65, 75],
-        'lambda_l1': [ 2, 2.5, 3],
-        'lambda_l2': [ 2, 2.5, 3]
+        'n_estimators': [50, 100, 150],  # Within the range of 50 to 150
+        'learning_rate': [0.05, 0.1, 0.15],  # Within the range of 0.05 to 0.15
+        'num_leaves': [20, 30, 40],  # Within the range of 20 to 40
+        'max_depth': [5, 10, 15, 20],  # Within the range of 5 to 20
+        'min_data_in_leaf': [1, 5, 10],  # Within the range of 1 to 10
+        'lambda_l1': [2.0, 2.5, 3.0],  # Within the range of 2 to 3
+        'lambda_l2': [2.0, 2.5, 3.0]   # Within the range of 2 to 3
     }
     
     model = lgb.LGBMRegressor(random_state=42, verbosity=-1)
-    random_search = RandomizedSearchCV(
-        model, param_distributions, n_iter=50, cv=5,
-        scoring='neg_mean_squared_error', verbose=1, n_jobs=-1, random_state=state
-    )
+    random_search = RandomizedSearchCV(model, param_distributions, n_iter=50, cv=5, scoring='neg_mean_squared_error', verbose=1, n_jobs=-1)
     random_search.fit(X_train, y_train)
     
     best_params = random_search.best_params_
-    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42), X_train, y_train)
+    metrics = evaluate_model(lgb.LGBMRegressor(**best_params, random_state=42))
     
     # Append results to CSV
     append_metrics_to_csv('LightGBM_Random_Search', metrics, time.time() - start_time)
 
-# Running Grid Search and Random Search optimizations
-grid_search_optimization()
-random_search_optimization()
-
-
-
-
-# Running all optimization techniques
-# bayesian_optimization_tpe()
-# bayesian_optimization_gp()
-# bayesian_optimization_cmaes()
-
+# Main execution
+if __name__ == "__main__":
+    bayesian_optimization_tpe()
+    bayesian_optimization_gp()
+    bayesian_optimization_cmaes()
+    grid_search_optimization()
+    random_search_optimization()

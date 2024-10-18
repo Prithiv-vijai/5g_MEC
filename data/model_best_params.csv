@@ -1,0 +1,2 @@
+Model Name,learning_rate,num_iterations,num_leaves,max_depth,min_data_in_leaf,lambda_l2
+LGBM_QIPSO,0.08308891064258775,107,41,21,20,0.5791052647537748

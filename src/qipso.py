@@ -1,14 +1,10 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import (
-    mean_squared_error, 
-    mean_absolute_error, 
-    r2_score, 
-    mean_absolute_percentage_error
-)
-from sklearn.ensemble import HistGradientBoostingRegressor
+import lightgbm as lgb
 import os
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
+
 import time
 
 # Load the dataset from a CSV file
@@ -19,19 +15,20 @@ X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth'
 y = data['Resource_Allocation']
 
 # Function to calculate metrics
-def calculate_metrics_cv(model, X, y, cv=3):
-    # Perform cross-validation
-    mse_scores = cross_val_score(model, X, y, cv=cv, scoring='neg_mean_squared_error')
-    mse_scores = -mse_scores  # Convert negative MSE to positive
+def calculate_metrics(model, X_train, X_test, y_train, y_test):
+    # Train the model
+    model.fit(X_train, y_train)
+    # Make predictions
+    y_pred = model.predict(X_test)
 
-    # Compute average and standard deviation of metrics
-    avg_mse = np.mean(mse_scores)
-    rmse = np.sqrt(avg_mse)
-    avg_mae = np.mean(cross_val_score(model, X, y, cv=cv, scoring='neg_mean_absolute_error')) * -1
-    avg_r2 = np.mean(cross_val_score(model, X, y, cv=cv, scoring='r2'))
-    avg_mape = np.mean(cross_val_score(model, X, y, cv=cv, scoring='neg_mean_absolute_percentage_error')) * -1
+    # Calculate metrics
+    mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    mape = mean_absolute_percentage_error(y_test, y_pred)
 
-    return avg_mse, rmse, avg_mae, avg_r2, avg_mape
+    return mse, rmse, mae, r2, mape
 
 # Append metrics to CSV
 def append_metrics_to_csv(model_name, metrics, completion_time, model_category='Boosting Models'):
@@ -57,12 +54,12 @@ def append_metrics_to_csv(model_name, metrics, completion_time, model_category='
 def append_best_params_to_csv(model_name, best_params):
     ordered_params = {
         'Model Name': [model_name],
-        'l2_regularization': [best_params[5]],
         'learning_rate': [best_params[0]],
-        'max_depth': [best_params[3]],
-        'max_iter': [best_params[1]],
-        'max_leaf_nodes': [best_params[2]],
-        'min_samples_leaf': [best_params[4]]
+        'num_iterations': [int(best_params[1])],
+        'num_leaves': [int(best_params[2])],
+        'max_depth': [int(best_params[3])],
+        'min_data_in_leaf': [int(best_params[4])],
+        'lambda_l2': [best_params[5]]
     }
     df_params = pd.DataFrame(ordered_params)
     file_path = '../data/model_best_params.csv'
@@ -72,7 +69,7 @@ def append_best_params_to_csv(model_name, best_params):
         df_params.to_csv(file_path, mode='a', header=False, index=False)
 
 # Initialize the model
-model = HistGradientBoostingRegressor(random_state=40)
+model = lgb.LGBMRegressor(random_state=42, verbose=-1)
 
 # Quantum-Inspired Particle Swarm Optimization (QIPSO)
 class QIPSO:
@@ -134,14 +131,16 @@ def objective_function(params):
 
     model.set_params(
         learning_rate=learning_rate,
-        max_iter=max_iter,
-        max_leaf_nodes=max_leaf_nodes,
+        n_estimators=max_iter,
+        num_leaves=max_leaf_nodes,
         max_depth=max_depth,
-        min_samples_leaf=min_samples_leaf,
-        l2_regularization=l2_regularization
+        min_child_samples=min_samples_leaf,
+        reg_lambda=l2_regularization
     )
 
-    mse, _, _, _, _ = calculate_metrics_cv(model, X, y, cv=3)
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=40)
+    mse, _, _, _, _ = calculate_metrics(model, X_train, X_test, y_train, y_test)
     return mse
 
 # Define parameter bounds
@@ -156,7 +155,7 @@ bounds = [
 
 # Start the QIPSO optimization
 start_time_qipso = time.time()
-print("Starting Quantum-Inspired Particle Swarm Optimization (QIPSO) with Cross-Validation (cv=3)...")
+print("Starting Quantum-Inspired Particle Swarm Optimization (QIPSO)...")
 
 qipso_optimizer = QIPSO(objective_function)
 best_params_qipso = qipso_optimizer.optimize()
@@ -164,17 +163,20 @@ best_params_qipso = qipso_optimizer.optimize()
 # Use best parameters to make predictions
 model.set_params(
     learning_rate=best_params_qipso[0],
-    max_iter=int(best_params_qipso[1]),
-    max_leaf_nodes=int(best_params_qipso[2]),
+    n_estimators=int(best_params_qipso[1]),
+    num_leaves=int(best_params_qipso[2]),
     max_depth=int(best_params_qipso[3]),
-    min_samples_leaf=int(best_params_qipso[4]),
-    l2_regularization=best_params_qipso[5]
+    min_child_samples=int(best_params_qipso[4]),
+    reg_lambda=best_params_qipso[5],
+    verbose=-1
 )
 
-metrics_qipso = calculate_metrics_cv(model, X, y, cv=3)
+# Train and evaluate the model with best parameters
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=40)
+metrics_qipso = calculate_metrics(model, X_train, X_test, y_train, y_test)
 
 completion_time_qipso = time.time() - start_time_qipso
-append_metrics_to_csv('Hgbrt_QIPSO_CV5', metrics_qipso, completion_time_qipso)
-append_best_params_to_csv('Hgbrt_QIPSO_CV5', best_params_qipso)
+append_metrics_to_csv('LGBM_QIPSO', metrics_qipso, completion_time_qipso)
+append_best_params_to_csv('LGBM_QIPSO', best_params_qipso)
 
-print("Completed QIPSO with cross-validation (cv=3) and best parameters:", best_params_qipso)
+print("Completed QIPSO with best parameters:", best_params_qipso)

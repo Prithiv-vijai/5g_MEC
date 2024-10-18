@@ -52,12 +52,10 @@ def append_metrics_to_csv(model_name, metrics, completion_time, model_category='
         df_metrics.to_csv(file_path, mode='a', header=False, index=False, columns=column_order)
 
 # Function to evaluate the model with cross-validation
-def evaluate_model(model, X, y, cv=5):
-    scores = cross_val_score(model, X, y, cv=cv, scoring='neg_mean_squared_error')
-    mean_mse = -scores.mean()
-    model.fit(X, y)
-    y_pred = model.predict(X)
-    return calculate_metrics(y, y_pred)
+def evaluate_model(model):
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    return calculate_metrics(y_test, y_pred) 
 
 # Append best parameters to CSV
 def append_best_params_to_csv(model_name, best_params):
@@ -87,12 +85,12 @@ def append_best_params_to_csv(model_name, best_params):
 
 # Global objective function
 def objective(trial):
-    learning_rate = trial.suggest_float('learning_rate', 0.05, 0.1)
-    max_iter = trial.suggest_int('max_iter', 100, 250)
-    max_leaf_nodes = trial.suggest_int('max_leaf_nodes', 5, 40)
+    learning_rate = trial.suggest_float('learning_rate', 0.05, 0.15)
+    max_iter = trial.suggest_int('max_iter', 50, 150)
+    max_leaf_nodes = trial.suggest_int('max_leaf_nodes', 20, 40)
     max_depth = trial.suggest_int('max_depth', 5, 20)
-    min_samples_leaf = trial.suggest_int('min_samples_leaf', 25, 75)
-    l2_regularization = trial.suggest_float('l2_regularization', 3, 7)
+    min_samples_leaf = trial.suggest_int('min_samples_leaf', 1, 10)
+    l2_regularization = trial.suggest_float('l2_regularization', 2, 3)
 
     model = HistGradientBoostingRegressor(
         random_state=42,
@@ -104,7 +102,10 @@ def objective(trial):
         l2_regularization=l2_regularization,
     )
 
-    return evaluate_model(model, X_train, y_train)[0]
+    # Return the cross-validated mean MSE as the objective value for optimization
+    neg_mse_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error')
+    mean_mse = -neg_mse_scores.mean()
+    return mean_mse
 
 # Optimization Functions
 def bayesian_optimization_tpe():
@@ -114,7 +115,7 @@ def bayesian_optimization_tpe():
     study = optuna.create_study(sampler=TPESampler(seed=state))
     study.optimize(objective, n_trials=iter)
     best_params = study.best_params
-    metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=42), X_train, y_train)
+    metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=42))
 
     append_metrics_to_csv('Hgbrt_BO_TPE', metrics, time.time() - start_time)
     append_best_params_to_csv('Hgbrt_BO_TPE', best_params)
@@ -126,7 +127,7 @@ def bayesian_optimization_gp():
     study = optuna.create_study(sampler=GPSampler(seed=state))
     study.optimize(objective, n_trials=iter)
     best_params = study.best_params
-    metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=42), X_train, y_train)
+    metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=42))
 
     append_metrics_to_csv('Hgbrt_BO_GP', metrics, time.time() - start_time)
     append_best_params_to_csv('Hgbrt_BO_GP', best_params)
@@ -138,7 +139,7 @@ def bayesian_optimization_cmaes():
     study = optuna.create_study(sampler=CmaEsSampler(seed=state))
     study.optimize(objective, n_trials=iter)
     best_params = study.best_params
-    metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=42), X_train, y_train)
+    metrics = evaluate_model(HistGradientBoostingRegressor(**best_params, random_state=42))
 
     append_metrics_to_csv('Hgbrt_BO_CMAES', metrics, time.time() - start_time)
     append_best_params_to_csv('Hgbrt_BO_CMAES', best_params)
@@ -149,11 +150,11 @@ def grid_search():
 
     start_time = time.time()
     param_grid = {
-        'learning_rate': [0.05, 0.1],
-        'max_iter': [100, 150],
-        'max_leaf_nodes': [20, 30],
+        'learning_rate': [0.05, 0.15],
+        'max_iter': [50, 150],
+        'max_leaf_nodes': [20, 40],
         'max_depth': [10, 15],
-        'min_samples_leaf': [30, 40],
+        'min_samples_leaf': [1, 10],
         'l2_regularization': [2,3]
     }
     model = HistGradientBoostingRegressor(random_state=42)
@@ -166,6 +167,8 @@ def grid_search():
     metrics = calculate_metrics(y_test, y_pred)
 
     append_metrics_to_csv('Hgbrt_GridSearch', metrics, time.time() - start_time)
+    append_best_params_to_csv('Hgbrt_GridSearch', best_params)
+
 
 
 # Random Search function
@@ -174,15 +177,15 @@ def random_search():
 
     start_time = time.time()
     param_dist = {
-        'learning_rate': np.linspace(0.01, 0.2, 20),
-        'max_iter': np.arange(100, 300, 50),
-        'max_leaf_nodes': np.arange(10, 50, 5),
-        'max_depth': np.arange(5, 20, 3),
-        'min_samples_leaf': np.arange(10, 100, 50),
-        'l2_regularization': np.linspace(0, 1, 2)
+        'learning_rate': np.linspace(0.05, 0.1, 0.15),
+        'max_iter': np.arange(100, 75, 50),
+        'max_leaf_nodes': np.arange(20, 25, 40),
+        'max_depth': np.arange(5, 20, 30),
+        'min_samples_leaf': np.arange(1, 10, 8),
+        'l2_regularization': np.linspace(2, 3, 2.8)
     }
     model = HistGradientBoostingRegressor(random_state=42)
-    random_search = RandomizedSearchCV(model, param_distributions=param_dist, n_iter=100, scoring='neg_mean_squared_error', cv=5, n_jobs=-1, random_state=42)
+    random_search = RandomizedSearchCV(model, param_distributions=param_dist, n_iter=50, scoring='neg_mean_squared_error', cv=5, n_jobs=-1, random_state=42)
     random_search.fit(X_train, y_train)
 
     best_params = random_search.best_params_
@@ -191,16 +194,20 @@ def random_search():
     metrics = calculate_metrics(y_test, y_pred)
 
     append_metrics_to_csv('Hgbrt_RandomSearch', metrics, time.time() - start_time)
+    append_best_params_to_csv('Hgbrt_RandomSearch', best_params)
+
 
 
 
 
 # Run the optimization functions
 if __name__ == '__main__':
-    # bayesian_optimization_tpe()
-    # bayesian_optimization_gp()
     grid_search()
     random_search()
+    bayesian_optimization_tpe()
+    bayesian_optimization_gp()
+    bayesian_optimization_cmaes()
+    
     
 
 

@@ -1,22 +1,22 @@
 import numpy as np
 import pandas as pd
 import time
-from sklearn.ensemble import HistGradientBoostingRegressor
+from lightgbm import LGBMRegressor
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
 import os
 
 # Constants for Particle Swarm Optimization
-DIMENSIONS = 6              # Number of dimensions (hyperparameters)
-B_LO = [0.001, 100, 20, 5, 10, 0]  # Lower boundary of search space for hyperparameters
-B_HI = [0.5, 500, 100, 25, 50, 2]  # Upper boundary of search space for hyperparameters
+DIMENSIONS = 7              # Number of dimensions (hyperparameters for LightGBM)
+B_LO = [100, 0.05, 5, 5, 25, 1, 1]  # Lower boundary of search space for hyperparameters
+B_HI = [250, 0.09, 40, 20, 75, 3, 3]  # Upper boundary of search space for hyperparameters
 
-POPULATION = 30             # Number of particles in the swarm
+POPULATION = 20             # Number of particles in the swarm
 V_MAX = 0.1                 # Maximum velocity value
 PERSONAL_C = 2.0            # Personal coefficient factor
 SOCIAL_C = 2.0              # Social coefficient factor
 CONVERGENCE = 0.001         # Convergence threshold
-MAX_ITER = 400              # Maximum number of iterations
+MAX_ITER = 500              # Maximum number of iterations
 
 RANDOM_SEED = 42            # Seed for reproducibility
 
@@ -68,16 +68,17 @@ def append_metrics_to_csv(model_name, metrics, completion_time=None, model_categ
 def append_best_params_to_csv(model_name, best_params):
     params_dict = {
         'Model Name': [model_name],
-        'l2_regularization': [best_params['l2_regularization']],
+        'n_estimators': [best_params['n_estimators']],
         'learning_rate': [best_params['learning_rate']],
+        'num_leaves': [best_params['num_leaves']],
         'max_depth': [best_params['max_depth']],
-        'max_iter': [best_params['max_iter']],
-        'max_leaf_nodes': [best_params['max_leaf_nodes']],
-        'min_samples_leaf': [best_params['min_samples_leaf']]
+        'min_data_in_leaf': [best_params['min_data_in_leaf']],
+        'lambda_l1': [best_params['lambda_l1']],
+        'lambda_l2': [best_params['lambda_l2']]
     }
     
     df_params = pd.DataFrame(params_dict)
-    file_path = '../data/model_best_params.csv'
+    file_path = '../data/light_gbm_best_params.csv'
     
     # Ensure the directory exists
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -114,14 +115,16 @@ class Swarm:
                 self.best_pos_z = particle.pos_z
 
     def evaluate_cost(self, params):
-        model = HistGradientBoostingRegressor(
-            learning_rate=params[0],
-            max_iter=int(params[1]),
-            max_leaf_nodes=int(params[2]),
+        model = LGBMRegressor(
+            n_estimators=int(params[0]),
+            learning_rate=params[1],
+            num_leaves=int(params[2]),
             max_depth=int(params[3]),
-            min_samples_leaf=int(params[4]),
-            l2_regularization=params[5],
-            random_state=RANDOM_SEED  # Ensuring reproducibility for the model as well
+            min_data_in_leaf=int(params[4]),
+            lambda_l1=params[5],
+            lambda_l2=params[6],
+            random_state=RANDOM_SEED,
+            verbose=-1
         )
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
@@ -175,29 +178,32 @@ def particle_swarm_optimization():
     print("Best Cost: ", swarm.best_pos_z)
 
     best_params = {
-        'learning_rate': swarm.best_pos[0],
-        'max_iter': int(swarm.best_pos[1]),
-        'max_leaf_nodes': int(swarm.best_pos[2]),
+        'n_estimators': int(swarm.best_pos[0]),
+        'learning_rate': swarm.best_pos[1],
+        'num_leaves': int(swarm.best_pos[2]),
         'max_depth': int(swarm.best_pos[3]),
-        'min_samples_leaf': int(swarm.best_pos[4]),
-        'l2_regularization': swarm.best_pos[5]
+        'min_data_in_leaf': int(swarm.best_pos[4]),
+        'lambda_l1': swarm.best_pos[5],
+        'lambda_l2': swarm.best_pos[6]
     }
 
-    model = HistGradientBoostingRegressor(
+    model = LGBMRegressor(
+        n_estimators=best_params['n_estimators'],
         learning_rate=best_params['learning_rate'],
-        max_iter=best_params['max_iter'],
-        max_leaf_nodes=best_params['max_leaf_nodes'],
+        num_leaves=best_params['num_leaves'],
         max_depth=best_params['max_depth'],
-        min_samples_leaf=best_params['min_samples_leaf'],
-        l2_regularization=best_params['l2_regularization'],
-        random_state=RANDOM_SEED  # Ensuring reproducibility for the final model
+        min_data_in_leaf=best_params['min_data_in_leaf'],
+        lambda_l1=best_params['lambda_l1'],
+        lambda_l2=best_params['lambda_l2'],
+        random_state=RANDOM_SEED,
+        verbosity=-1
     )
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
     metrics = calculate_metrics(y_test, y_pred)
-    append_metrics_to_csv('Hgbrt_PSO', metrics, completion_time)
-    append_best_params_to_csv('Hgbrt_PSO', best_params)
+    append_metrics_to_csv('LightGBM_PSO', metrics, completion_time)
+    append_best_params_to_csv('LightGBM_PSO', best_params)
 
     print(f"MSE: {metrics[0]}")
     print(f"RMSE: {metrics[1]}")
