@@ -19,7 +19,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 params_df = pd.read_csv('../data/light_gbm_best_params.csv')  # Ensure the correct file path and format
 
 # Select the desired model parameters by model name (e.g., 'LightGBM_BO_GP')
-model_name = 'LightGBM_BO_GP'
+model_name = 'LightGBM_BO_GP_xx'
 best_params = params_df[params_df['Model Name'] == model_name].iloc[0]
 
 # Create the LightGBM model with the best parameters

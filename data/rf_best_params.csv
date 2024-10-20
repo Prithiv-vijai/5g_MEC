@@ -1,2 +1,4 @@
 Model Name,n_estimators,max_depth,min_samples_leaf,max_leaf_nodes
-RandomForest_BO_TPE,193,18,25,40
+RandomForest_BO_TPE,284,16,5,50
+RandomForest_BO_GP,211,9,5,50
+RandomForest_BO_CMAES,266,21,5,50

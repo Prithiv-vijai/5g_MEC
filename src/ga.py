@@ -1,7 +1,7 @@
 import numpy as np
 from random import random, uniform
 from typing import List, Callable, Tuple
-from sklearn.ensemble import HistGradientBoostingRegressor
+from lightgbm import LGBMRegressor
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error, mean_absolute_error
 from sklearn.model_selection import train_test_split, cross_val_score
 import pandas as pd
@@ -10,7 +10,7 @@ import time  # Added for time tracking
 
 Genome = List[float]
 Population = List[Genome]
-FitnessFunc = Callable[[Genome, HistGradientBoostingRegressor, np.ndarray, np.ndarray], float]
+FitnessFunc = Callable[[Genome, LGBMRegressor, np.ndarray, np.ndarray], float]
 
 # Generate a genome with real values between the specified bounds
 def generate_genome(bounds: np.ndarray) -> Genome:
@@ -32,15 +32,16 @@ def mutation(genome: Genome, bounds: np.ndarray, probability: float = 0.1) -> Ge
             genome[i] = uniform(bounds[i][0], bounds[i][1])  # Random mutation within bounds
     return genome
 
-# Fitness function that evaluates the model (HGBRT) using NMSE
-def fitness_function(genome: Genome, model: HistGradientBoostingRegressor, X_train: np.ndarray, y_train: np.ndarray) -> float:
+# Fitness function that evaluates the model (LightGBM) using NMSE
+def fitness_function(genome: Genome, model: LGBMRegressor, X_train: np.ndarray, y_train: np.ndarray) -> float:
     params = {
         'learning_rate': genome[0],
-        'max_iter': int(genome[1]),
-        'max_leaf_nodes': int(genome[2]),
+        'n_estimators': int(genome[1]),
+        'num_leaves': int(genome[2]),
         'max_depth': int(genome[3]),
-        'min_samples_leaf': int(genome[4]),
-        'l2_regularization': genome[5]
+        'min_data_in_leaf': int(genome[4]),
+        'lambda_l1': genome[5],
+        'lambda_l2': genome[6]
     }
     
     model.set_params(**params)
@@ -48,14 +49,14 @@ def fitness_function(genome: Genome, model: HistGradientBoostingRegressor, X_tra
     return -np.mean(scores)  # Return NMSE (lower is better)
 
 # Sort population based on fitness (lower is better for NMSE)
-def sort_population(population: Population, fitness_func: FitnessFunc, model: HistGradientBoostingRegressor, X_train: np.ndarray, y_train: np.ndarray) -> Population:
+def sort_population(population: Population, fitness_func: FitnessFunc, model: LGBMRegressor, X_train: np.ndarray, y_train: np.ndarray) -> Population:
     return sorted(population, key=lambda genome: fitness_func(genome, model, X_train, y_train))
 
 # Run the genetic algorithm for real-valued hyperparameter optimization
 def run_evolution(
         population_size: int,
         bounds: np.ndarray,
-        model: HistGradientBoostingRegressor,
+        model: LGBMRegressor,
         X_train: np.ndarray,
         y_train: np.ndarray,
         fitness_func: FitnessFunc,
@@ -95,7 +96,7 @@ def run_evolution(
     completion_time = end_time - start_time  # Calculate completion time
     
     best_genome = population[0]
-    best_fitness = fitness_func(best_genome, model, X_train, y_train)
+    best_fitness = fitness_function(best_genome, model, X_train, y_train)
     
     return best_genome, best_fitness, completion_time
 
@@ -129,12 +130,25 @@ def append_metrics_to_csv(model_name: str, metrics: Tuple[float, float, float, f
         df_metrics.to_csv(file_path, mode='a', header=False, index=False, columns=column_order)
 
 # Function to append best parameters to CSV
-def append_best_params_to_csv(model_name: str, best_params: dict, completion_time: float):
-    df_params = pd.DataFrame([best_params])
-    df_params.insert(0, 'Model Name', model_name)
-    df_params.insert(1, 'Completion Time', completion_time)
+def append_best_params_to_csv(model_name, best_params):
+    for key in best_params:
+        if best_params[key] is None:
+            best_params[key] = 'None'
+
+    ordered_params = {
+        'Model Name': [model_name],
+        'num_leaves': [best_params.get('num_leaves', 'None')],
+        'n_estimators': [best_params.get('n_estimators', 'None')],  # Added n_estimators
+        'learning_rate': [best_params.get('learning_rate', 'None')],
+        'max_depth': [best_params.get('max_depth', 'None')],
+        'min_data_in_leaf': [best_params.get('min_data_in_leaf', 'None')],
+        'lambda_l1': [best_params.get('lambda_l1', 'None')],
+        'lambda_l2': [best_params.get('lambda_l2', 'None')],
+    }
     
-    file_path = "../data/model_best_params.csv"
+    df_params = pd.DataFrame(ordered_params)
+    file_path = '../data/light_gbm_best_params.csv'
+
     if not os.path.isfile(file_path):
         df_params.to_csv(file_path, mode='w', header=True, index=False)
     else:
@@ -150,56 +164,53 @@ if __name__ == "__main__":
 
     # Define the bounds for the hyperparameters
     bounds = np.array([
-        [0.001, 0.5],    # learning_rate
-        [100, 500],      # max_iter
-        [20, 100],       # max_leaf_nodes
-        [5, 25],         # max_depth
-        [10, 50],        # min_samples_leaf
-        [0, 2]           # l2_regularization
+        [0.05, 0.09],   # learning_rate
+        [100, 250],     # n_estimators
+        [5, 40],        # num_leaves
+        [5, 20],        # max_depth
+        [45, 75],       # min_data_in_leaf
+        [3, 4],         # lambda_l1
+        [3, 4]          # lambda_l2
     ])
 
     # Initialize the model
-    model = HistGradientBoostingRegressor(random_state=42)
+    model = LGBMRegressor(random_state=42,verbosity=-1)
 
     # Run the genetic algorithm
     best_genome, best_fitness, completion_time = run_evolution(
-        population_size=100,
+        population_size=20,
         bounds=bounds,
         model=model,
         X_train=X_train.values,
         y_train=y_train.values,
         fitness_func=fitness_function,
         fitness_limit=0.01,  # Desired fitness level (NMSE)
-        generation_limit=20
+        generation_limit=200
     )
 
     # Set the best found parameters to the model
     best_params = {
         'learning_rate': best_genome[0],
-        'max_iter': int(best_genome[1]),
-        'max_leaf_nodes': int(best_genome[2]),
+        'n_estimators': int(best_genome[1]),
+        'num_leaves': int(best_genome[2]),
         'max_depth': int(best_genome[3]),
-        'min_samples_leaf': int(best_genome[4]),
-        'l2_regularization': best_genome[5]
+        'min_data_in_leaf': int(best_genome[4]),
+        'lambda_l1': best_genome[5],
+        'lambda_l2': best_genome[6]
     }
-
     model.set_params(**best_params)
+
+    # Fit the model with the best parameters
     model.fit(X_train, y_train)
 
-    # Evaluate on the test set
-    y_pred = model.predict(X_test)
-    test_metrics = calculate_metrics(y_test, y_pred)
-    print("Test Metrics - MSE: {:.4f}, RMSE: {:.4f}, MAE: {:.4f}, R2: {:.4f}, MAPE: {:.4f}"
-          .format(*test_metrics))
+    # Make predictions
+    y_pred = model.predict(X_train)
 
-    # Append the metrics and best parameters to the CSV files
-    append_metrics_to_csv(
-        model_name="Hgbrt_GA",
-        metrics=test_metrics,
-        completion_time=completion_time
-    )
-    append_best_params_to_csv(
-        model_name="Hgbrt_GA",
-        best_params=best_params,
-        completion_time=completion_time
-    )
+    # Calculate metrics
+    metrics = calculate_metrics(y_train, y_pred)
+
+    # Append metrics to CSV
+    append_metrics_to_csv("LightGBM_GA", metrics, completion_time)
+
+    # Append best parameters to CSV
+    append_best_params_to_csv("LightGBM_GA", best_params)

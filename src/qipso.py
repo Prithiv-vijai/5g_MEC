@@ -1,10 +1,9 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, KFold, cross_val_score
 import lightgbm as lgb
 import os
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
-
 import time
 
 # Load the dataset from a CSV file
@@ -13,6 +12,8 @@ data = pd.read_csv('../data/augmented_dataset.csv')
 # Define features and target
 X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth', 'Allocated_Bandwidth']]
 y = data['Resource_Allocation']
+
+kf = KFold(n_splits=3, shuffle=True, random_state=42)
 
 # Function to calculate metrics
 def calculate_metrics(model, X_train, X_test, y_train, y_test):
@@ -31,7 +32,7 @@ def calculate_metrics(model, X_train, X_test, y_train, y_test):
     return mse, rmse, mae, r2, mape
 
 # Append metrics to CSV
-def append_metrics_to_csv(model_name, metrics, completion_time, model_category='Boosting Models'):
+def append_metrics_to_csv(model_name, metrics, completion_time, model_category='Optimization Models'):
     column_order = ['Model Name', 'Model Category', 'MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Completion_Time']
     metrics_dict = {
         'Model Name': [model_name],
@@ -52,17 +53,24 @@ def append_metrics_to_csv(model_name, metrics, completion_time, model_category='
 
 # Append best parameters to CSV
 def append_best_params_to_csv(model_name, best_params):
+    for key in best_params:
+        if best_params[key] is None:
+            best_params[key] = 'None'
+
     ordered_params = {
         'Model Name': [model_name],
-        'learning_rate': [best_params[0]],
-        'num_iterations': [int(best_params[1])],
-        'num_leaves': [int(best_params[2])],
-        'max_depth': [int(best_params[3])],
-        'min_data_in_leaf': [int(best_params[4])],
-        'lambda_l2': [best_params[5]]
+        'num_leaves': [best_params.get('num_leaves', 'None')],
+        'n_estimators': [best_params.get('n_estimators', 'None')],  
+        'learning_rate': [best_params.get('learning_rate', 'None')],
+        'max_depth': [best_params.get('max_depth', 'None')],
+        'min_data_in_leaf': [best_params.get('min_data_in_leaf', 'None')],
+        'lambda_l1': [best_params.get('lambda_l1', 'None')],
+        'lambda_l2': [best_params.get('lambda_l2', 'None')],
     }
+
     df_params = pd.DataFrame(ordered_params)
-    file_path = '../data/model_best_params.csv'
+    file_path = '../data/light_gbm_best_params.csv'
+
     if not os.path.isfile(file_path):
         df_params.to_csv(file_path, mode='w', header=True, index=False)
     else:
@@ -77,17 +85,18 @@ class QIPSO:
         self.objective_function = objective_function
         self.num_particles = num_particles
         self.max_iter = max_iter
-        self.particles = np.zeros((num_particles, 6))
-        self.particles[:, 0] = np.random.uniform(0.001, 0.5, num_particles)  # learning_rate
-        self.particles[:, 1] = np.random.randint(5, 501, num_particles)       # max_iter
-        self.particles[:, 2] = np.random.randint(2, 101, num_particles)       # max_leaf_nodes
-        self.particles[:, 3] = np.random.randint(1, 26, num_particles)        # max_depth
-        self.particles[:, 4] = np.random.randint(1, 51, num_particles)        # min_samples_leaf
-        self.particles[:, 5] = np.random.uniform(0, 2, num_particles)         # l2_regularization
-        self.velocities = np.random.rand(num_particles, 6) * 0.1
+        self.particles = np.zeros((num_particles, 7))
+        self.particles[:, 0] = np.random.uniform(0.05, 0.09, num_particles)  # learning_rate
+        self.particles[:, 1] = np.random.randint(100, 250, num_particles)    # n_estimators
+        self.particles[:, 2] = np.random.randint(5, 40, num_particles)       # num_leaves
+        self.particles[:, 3] = np.random.randint(5, 20, num_particles)       # max_depth
+        self.particles[:, 4] = np.random.randint(35, 75, num_particles)      # min_data_in_leaf
+        self.particles[:, 5] = np.random.uniform(2, 4, num_particles)        # lambda_l1
+        self.particles[:, 6] = np.random.uniform(2, 4, num_particles)        # lambda_l2
+        self.velocities = np.random.rand(num_particles, 7) * 0.1  # Changed from 8 to 7
         self.best_positions = np.copy(self.particles)
         self.best_scores = np.array([float('inf')] * num_particles)
-        self.global_best_position = np.zeros(6)
+        self.global_best_position = np.zeros(7)  # Changed from 8 to 7
         self.global_best_score = float('inf')
 
     def optimize(self):
@@ -113,8 +122,7 @@ class QIPSO:
                     2 * np.random.rand() * (self.global_best_position - self.particles[i])
                 )
                 self.particles[i] += self.velocities[i]
-                for j in range(len(bounds)):
-                    self.particles[i, j] = np.clip(self.particles[i, j], bounds[j][0], bounds[j][1])
+                self.particles[i] = np.clip(self.particles[i], bounds[:, 0], bounds[:, 1])
 
             print(f"Iteration {iteration + 1}/{self.max_iter}: Best Score = {self.global_best_score}")
 
@@ -122,36 +130,38 @@ class QIPSO:
 
 # Objective function for optimization
 def objective_function(params):
-    learning_rate = np.clip(params[0], 0.001, 0.5)
-    max_iter = np.clip(int(params[1]), 5, 500)
-    max_leaf_nodes = max(2, int(params[2]))
-    max_depth = max(1, int(params[3]))
-    min_samples_leaf = max(1, int(params[4]))
-    l2_regularization = np.clip(params[5], 0, 2)
+    learning_rate = np.clip(params[0], bounds[0][0], bounds[0][1])
+    n_estimators = int(np.clip(params[1], bounds[1][0], bounds[1][1]))
+    num_leaves = int(np.clip(params[2], bounds[2][0], bounds[2][1]))
+    max_depth = int(np.clip(params[3], bounds[3][0], bounds[3][1]))
+    min_data_in_leaf = int(np.clip(params[4], bounds[4][0], bounds[4][1]))
+    lambda_l1 = np.clip(params[5], bounds[5][0], bounds[5][1])
+    lambda_l2 = np.clip(params[6], bounds[6][0], bounds[6][1])
 
     model.set_params(
         learning_rate=learning_rate,
-        n_estimators=max_iter,
-        num_leaves=max_leaf_nodes,
+        n_estimators=n_estimators,
+        num_leaves=num_leaves,
         max_depth=max_depth,
-        min_child_samples=min_samples_leaf,
-        reg_lambda=l2_regularization
+        min_child_samples=min_data_in_leaf,
+        reg_lambda=lambda_l2,
+        reg_alpha=lambda_l1
     )
 
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=40)
-    mse, _, _, _, _ = calculate_metrics(model, X_train, X_test, y_train, y_test)
-    return mse
+    # Perform 5-fold cross-validation
+    scores = -cross_val_score(model, X, y, cv=kf, scoring='neg_mean_squared_error')
+    return np.mean(scores)
 
 # Define parameter bounds
-bounds = [
-    (0.001, 0.5),    # learning_rate
-    (5, 500),        # max_iter
-    (2, 100),        # max_leaf_nodes
-    (1, 25),         # max_depth
-    (1, 50),         # min_samples_leaf
-    (0, 2)           # l2_regularization
-]
+bounds = np.array([
+    [0.05, 0.09],   # learning_rate
+    [100, 250],    # n_estimators
+    [5, 40],        # num_leaves
+    [5, 20],        # max_depth
+    [35, 75],       # min_data_in_leaf
+    [2, 3],         # lambda_l1
+    [2, 3]          # lambda_l2
+])
 
 # Start the QIPSO optimization
 start_time_qipso = time.time()
@@ -167,16 +177,26 @@ model.set_params(
     num_leaves=int(best_params_qipso[2]),
     max_depth=int(best_params_qipso[3]),
     min_child_samples=int(best_params_qipso[4]),
-    reg_lambda=best_params_qipso[5],
+    reg_lambda=best_params_qipso[6],
+    reg_alpha=best_params_qipso[5],
     verbose=-1
 )
 
-# Train and evaluate the model with best parameters
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=40)
+# Train and evaluate the model with the best parameters
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 metrics_qipso = calculate_metrics(model, X_train, X_test, y_train, y_test)
 
 completion_time_qipso = time.time() - start_time_qipso
-append_metrics_to_csv('LGBM_QIPSO', metrics_qipso, completion_time_qipso)
-append_best_params_to_csv('LGBM_QIPSO', best_params_qipso)
+print(f"Completion Time: {completion_time_qipso:.4f} seconds")
+append_metrics_to_csv('LightGBM_QIPSO', metrics_qipso, completion_time_qipso)
+append_best_params_to_csv('LightGBM_QIPSO', {
+    'n_estimators': best_params_qipso[1],
+    'learning_rate': best_params_qipso[0],
+    'num_leaves': best_params_qipso[2],
+    'max_depth': best_params_qipso[3],
+    'min_data_in_leaf': best_params_qipso[4],
+    'lambda_l1': best_params_qipso[5],
+    'lambda_l2': best_params_qipso[6]
+})
 
-print("Completed QIPSO with best parameters:", best_params_qipso)
+print("Optimization and evaluation complete.")

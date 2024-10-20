@@ -8,7 +8,7 @@ import os
 
 # Constants for Particle Swarm Optimization
 DIMENSIONS = 7              # Number of dimensions (hyperparameters for LightGBM)
-B_LO = [100, 0.05, 5, 5, 25, 1, 1]  # Lower boundary of search space for hyperparameters
+B_LO = [100, 0.05, 5, 5, 35, 1, 1]  # Lower boundary of search space for hyperparameters
 B_HI = [250, 0.09, 40, 20, 75, 3, 3]  # Upper boundary of search space for hyperparameters
 
 POPULATION = 20             # Number of particles in the swarm
@@ -16,7 +16,7 @@ V_MAX = 0.1                 # Maximum velocity value
 PERSONAL_C = 2.0            # Personal coefficient factor
 SOCIAL_C = 2.0              # Social coefficient factor
 CONVERGENCE = 0.001         # Convergence threshold
-MAX_ITER = 500              # Maximum number of iterations
+MAX_ITER = 200              # Maximum number of iterations
 
 RANDOM_SEED = 42            # Seed for reproducibility
 
@@ -31,7 +31,7 @@ X = data[['Application_Type', 'Signal_Strength', 'Latency', 'Required_Bandwidth'
 y = data['Resource_Allocation']
 
 # Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=RANDOM_SEED)
 
 # Function to calculate metrics
 def calculate_metrics(y_test, y_pred):
@@ -43,7 +43,7 @@ def calculate_metrics(y_test, y_pred):
     return mse, rmse, mae, r2, mape
 
 # Function to append metrics to CSV file
-def append_metrics_to_csv(model_name, metrics, completion_time=None, model_category='Boosting Models'):
+def append_metrics_to_csv(model_name, metrics, completion_time=None, model_category='Optimization Models'):
     column_order = ['Model Name', 'Model Category', 'MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Completion Time']
     metrics_dict = {
         'Model Name': [model_name],
@@ -66,25 +66,28 @@ def append_metrics_to_csv(model_name, metrics, completion_time=None, model_categ
 
 # Function to save best parameters to CSV
 def append_best_params_to_csv(model_name, best_params):
-    params_dict = {
+    for key in best_params:
+        if best_params[key] is None:
+            best_params[key] = 'None'
+
+    ordered_params = {
         'Model Name': [model_name],
-        'n_estimators': [best_params['n_estimators']],
-        'learning_rate': [best_params['learning_rate']],
-        'num_leaves': [best_params['num_leaves']],
-        'max_depth': [best_params['max_depth']],
-        'min_data_in_leaf': [best_params['min_data_in_leaf']],
-        'lambda_l1': [best_params['lambda_l1']],
-        'lambda_l2': [best_params['lambda_l2']]
+        'num_leaves': [best_params.get('num_leaves', 'None')],
+        'n_estimators': [best_params.get('n_estimators', 'None')],  # Added n_estimators
+        'learning_rate': [best_params.get('learning_rate', 'None')],
+        'max_depth': [best_params.get('max_depth', 'None')],
+        'min_data_in_leaf': [best_params.get('min_data_in_leaf', 'None')],
+        'lambda_l1': [best_params.get('lambda_l1', 'None')],
+        'lambda_l2': [best_params.get('lambda_l2', 'None')],
     }
-    
-    df_params = pd.DataFrame(params_dict)
+
+    df_params = pd.DataFrame(ordered_params)
     file_path = '../data/light_gbm_best_params.csv'
-    
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    
-    # Append to CSV or create if it doesn't exist
-    df_params.to_csv(file_path, mode='a', header=not os.path.isfile(file_path), index=False)
+
+    if not os.path.isfile(file_path):
+        df_params.to_csv(file_path, mode='w', header=True, index=False)
+    else:
+        df_params.to_csv(file_path, mode='a', header=False, index=False)
 
 # Class representing a particle in the swarm
 class Particle:
@@ -199,9 +202,9 @@ def particle_swarm_optimization():
         verbosity=-1
     )
     model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
+    y_pred = model.predict(X_train)
 
-    metrics = calculate_metrics(y_test, y_pred)
+    metrics = calculate_metrics(y_train, y_pred)
     append_metrics_to_csv('LightGBM_PSO', metrics, completion_time)
     append_best_params_to_csv('LightGBM_PSO', best_params)
 

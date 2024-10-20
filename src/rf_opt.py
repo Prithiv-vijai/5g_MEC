@@ -31,7 +31,7 @@ def calculate_metrics(y_test, y_pred):
     return mse, rmse, mae, r2, mape
 
 # Append metrics to CSV
-def append_metrics_to_csv(model_name, metrics, completion_time, model_category='Tree-Based Models'):
+def append_metrics_to_csv(model_name, metrics, completion_time, model_category='Optimization Models'):
     column_order = ['Model Name', 'Model Category', 'MSE', 'RMSE', 'MAE', 'R2', 'MAPE', 'Completion_Time']
     metrics_dict = {
         'Model Name': [model_name],
@@ -51,10 +51,12 @@ def append_metrics_to_csv(model_name, metrics, completion_time, model_category='
         df_metrics.to_csv(file_path, mode='a', header=False, index=False, columns=column_order)
 
 # Function to evaluate the model with cross-validation
-def evaluate_model(model):
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    return calculate_metrics(y_test, y_pred)  # Return metrics based on predictions
+def evaluate_model(model, X, y, cv=5):
+    scores = cross_val_score(model, X, y, cv=cv, scoring='neg_mean_squared_error')
+    mean_mse = -scores.mean()
+    model.fit(X, y)
+    y_pred = model.predict(X)
+    return calculate_metrics(y, y_pred)  # Return metrics based on predictions
 
 # Append best parameters to CSV
 def append_best_params_to_csv(model_name, best_params):
@@ -99,7 +101,6 @@ def objective_rf(trial):
     mean_mse = -neg_mse_scores.mean()
     return mean_mse
 
-
 # Bayesian Optimization using TPE
 def bayesian_optimization_tpe():
     print("Starting Bayesian Optimization with TPE...")
@@ -107,7 +108,7 @@ def bayesian_optimization_tpe():
     study = optuna.create_study(sampler=optuna.samplers.TPESampler(seed=state))
     study.optimize(objective_rf, n_trials=iter)  # Update to objective_rf
     best_params = study.best_params
-    metrics = evaluate_model(RandomForestRegressor(**best_params, random_state=state))
+    metrics = evaluate_model(RandomForestRegressor(**best_params, random_state=state), X_train, y_train)
 
     # Append best metrics and parameters to CSV
     append_metrics_to_csv('RandomForest_BO_TPE', metrics, time.time() - start_time)
@@ -120,7 +121,7 @@ def bayesian_optimization_gp():
     study = optuna.create_study(sampler=optuna.samplers.GPSampler(seed=state))
     study.optimize(objective_rf, n_trials=iter)  # Update to objective_rf
     best_params = study.best_params
-    metrics = evaluate_model(RandomForestRegressor(**best_params, random_state=state))
+    metrics = evaluate_model(RandomForestRegressor(**best_params, random_state=state), X_train, y_train)
 
     # Append best metrics and parameters to CSV
     append_metrics_to_csv('RandomForest_BO_GP', metrics, time.time() - start_time)
@@ -132,7 +133,7 @@ def bayesian_optimization_cmaes():
     study = optuna.create_study(sampler=optuna.samplers.CmaEsSampler(seed=state))
     study.optimize(objective_rf, n_trials=iter)  # Update to objective_rf
     best_params = study.best_params
-    metrics = evaluate_model(RandomForestRegressor(**best_params, random_state=state))
+    metrics = evaluate_model(RandomForestRegressor(**best_params, random_state=state), X_train, y_train)
 
     # Append best metrics and parameters to CSV
     append_metrics_to_csv('RandomForest_BO_CMAES', metrics, time.time() - start_time)
@@ -145,10 +146,10 @@ def grid_search_optimization():
     start_time = time.time()
     
     param_grid = {
-        'n_estimators': [ 50, 150],
+        'n_estimators': [ 300, 400],
         'max_depth': [10, 15,],
-        'min_samples_leaf': [ 1, 10],
-        'max_leaf_nodes': [20, 40]
+        'min_samples_leaf': [ 5, 10],
+        'max_leaf_nodes': [30, 40]
     }
     
     model = RandomForestRegressor(random_state=state)
@@ -161,8 +162,6 @@ def grid_search_optimization():
 
     # Append best metrics and parameters to CSV
     append_metrics_to_csv('RandomForest_Grid_Search', metrics, time.time() - start_time)
-    append_best_params_to_csv('RandomForest_Grid_Search', best_params)
-
 
 # Function to perform Random Search
 def random_search_optimization():
@@ -170,10 +169,10 @@ def random_search_optimization():
     start_time = time.time()
     
     param_distributions = {
-        'n_estimators': np.arange(50, 100, 150),
-        'max_depth': np.arange(5, 26, 50),
-        'min_samples_leaf': np.arange(1, 8, 10),
-        'max_leaf_nodes': np.arange(20, 25, 40)
+        'n_estimators': np.arange(200, 500, 100),
+        'max_depth': np.arange(5, 26, 5),
+        'min_samples_leaf': np.arange(10, 51, 5),
+        'max_leaf_nodes': np.arange(10, 20, 5)
     }
     
     model = RandomForestRegressor(random_state=state)
@@ -186,15 +185,12 @@ def random_search_optimization():
 
     # Append best metrics and parameters to CSV
     append_metrics_to_csv('RandomForest_Random_Search', metrics, time.time() - start_time)
-    append_best_params_to_csv('RandomForest_Random_Search', best_params)
-
 
 # Running the Grid Search and Random Search optimizations
-grid_search_optimization()
-random_search_optimization()
+# grid_search_optimization()
+# random_search_optimization()
 
-# Running all optimization techniques
-bayesian_optimization_tpe()
+# # Running all optimization techniques
+# bayesian_optimization_tpe()
 bayesian_optimization_gp()
 bayesian_optimization_cmaes()
-

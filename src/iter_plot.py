@@ -24,21 +24,21 @@ mse_values_gp = [
     1.0006
 ]
 
-mse_values_cmaes = [
-    1.2203,
-    1.1825,
-    1.0961,
-    1.0443,
-    1.0113,
-    1.0113,
-    1.0113
+mse_values_ga = [
+    1.4099,
+    1.3299,
+    1.3100,
+    1.2800,
+    1.2577,
+    1.2577,
+    1.2577
 ]
 
 # Create the plot
 plt.figure(figsize=(10, 6))
 plt.plot(iterations, mse_values_tpe, marker='o', color='#4c72b0', label='TPE', alpha=0.7)
 plt.plot(iterations, mse_values_gp, marker='s', color='#55a868', label='GP ', alpha=0.7)
-plt.plot(iterations, mse_values_cmaes, marker='d', color='#c44e52', label='CMAES ', alpha=0.7)
+plt.plot(iterations, mse_values_ga, marker='d', color='#c44e52', label='GA ', alpha=0.7)
 
 # Labels and ticks
 plt.xlabel('Iterations')

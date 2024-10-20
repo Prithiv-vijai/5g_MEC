@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+import lightgbm as lgb
+from sklearn.model_selection import train_test_split ,cross_val_score
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
-from sklearn.ensemble import HistGradientBoostingRegressor
 import os
 import time
 
@@ -57,23 +57,25 @@ def append_best_params_to_csv(model_name, best_params):
 
     ordered_params = {
         'Model Name': [model_name],
-        'l2_regularization': [best_params.get('l2_regularization', 'None')],
+        'num_leaves': [best_params.get('num_leaves', 'None')],
+        'n_estimators': [best_params.get('n_estimators', 'None')],
         'learning_rate': [best_params.get('learning_rate', 'None')],
         'max_depth': [best_params.get('max_depth', 'None')],
-        'max_iter': [best_params.get('max_iter', 'None')],
-        'max_leaf_nodes': [best_params.get('max_leaf_nodes', 'None')],
-        'min_samples_leaf': [best_params.get('min_samples_leaf', 'None')]
+        'min_data_in_leaf': [best_params.get('min_data_in_leaf', 'None')],
+        'lambda_l1': [best_params.get('lambda_l1', 'None')],
+        'lambda_l2': [best_params.get('lambda_l2', 'None')]
     }
 
     df_params = pd.DataFrame(ordered_params)
-    file_path = '../data/model_best_params.csv'
+    file_path = '../data/light_gbm_best_params.csv'
 
     if not os.path.isfile(file_path):
         df_params.to_csv(file_path, mode='w', header=True, index=False)
     else:
         df_params.to_csv(file_path, mode='a', header=False, index=False)
 
-model = HistGradientBoostingRegressor(random_state=40)
+# Initialize LightGBM model
+model = lgb.LGBMRegressor(random_state=seed,verbose=-1)
 
 def evaluate_model(model, X_train, y_train, X_test, y_test):
     # Train the model and predict
@@ -81,14 +83,15 @@ def evaluate_model(model, X_train, y_train, X_test, y_test):
     y_pred = model.predict(X_test)
     return calculate_metrics(y_test, y_pred)
 
-# Define the bounds for the parameters
+# Define the bounds for the LightGBM parameters
 bounds = [
-    (0.001, 0.5),    # learning_rate
-    (5, 500),        # max_iter
-    (2, 100),        # max_leaf_nodes (minimum 2)
-    (1, 25),         # max_depth (minimum 1)
-    (1, 50),         # min_samples_leaf (minimum 1)
-    (0, 2)           # l2_regularization
+    (0.05, 0.09),    # learning_rate
+    (100, 250),      # n_estimators
+    (5, 40),         # num_leaves (minimum 5)
+    (5, 20),         # max_depth (minimum 5)
+    (35, 75),        # min_data_in_leaf (minimum 25)
+    (2, 4),          # lambda_l1
+    (2, 4)           # lambda_l2
 ]
 
 # Improved Differential Evolution (IDE)
@@ -100,9 +103,9 @@ best_global_score = float('inf')
 best_global_position = np.zeros(len(bounds))
 
 # Set up parameters for IDE
-num_iterations = 50
+num_iterations = 100
 popsize = 15
-mutation_factor = 0.5  # Use one mutation factor
+mutation_factor = 0.5
 recombination_probability = 0.7
 
 # Initialize a population randomly with seed
@@ -129,20 +132,21 @@ for iteration in range(num_iterations):
         trial_vector = np.where(np.random.rand(len(bounds)) < recombination_probability, 
                                 mutated_vector, population[i])
 
-        # Ensure parameters stay within bounds
-        trial_vector[2] = max(2, int(trial_vector[2]))  # max_leaf_nodes must be >= 2
-
         # Evaluate the trial vector with updated parameters
         model.set_params(
             learning_rate=trial_vector[0],
-            max_iter=int(trial_vector[1]),
-            max_leaf_nodes=int(trial_vector[2]),
+            n_estimators=int(trial_vector[1]),
+            num_leaves=int(trial_vector[2]),
             max_depth=int(trial_vector[3]),
-            min_samples_leaf=int(trial_vector[4]),
-            l2_regularization=trial_vector[5]
+            min_data_in_leaf=int(trial_vector[4]),
+            lambda_l1=trial_vector[5],
+            lambda_l2=trial_vector[6]
         )
         
-        trial_score = evaluate_model(model, X_train, y_train, X_test, y_test)[0]  # Get only MSE
+        # Return the cross-validated mean MSE as the objective value for optimization
+        neg_mse_scores = cross_val_score(model, X_train, y_train, cv=3, scoring='neg_mean_squared_error')
+        mean_mse = -neg_mse_scores.mean()
+        trial_score= mean_mse
 
         # Selection
         if trial_score < best_scores[i]:
@@ -157,22 +161,23 @@ for iteration in range(num_iterations):
 # Extract best parameters from the result and convert to a dictionary
 best_params_ide = {
     'learning_rate': best_global_position[0],
-    'max_iter': int(best_global_position[1]),
-    'max_leaf_nodes': int(best_global_position[2]),
+    'n_estimators': int(best_global_position[1]),
+    'num_leaves': int(best_global_position[2]),
     'max_depth': int(best_global_position[3]),
-    'min_samples_leaf': int(best_global_position[4]),
-    'l2_regularization': best_global_position[5]
+    'min_data_in_leaf': int(best_global_position[4]),
+    'lambda_l1': best_global_position[5],
+    'lambda_l2': best_global_position[6]
 }
 
 # Use best parameters to make predictions
 model.set_params(**best_params_ide)
 
 # Fit the model and predict
-y_pred_ide = model.fit(X_train, y_train).predict(X_test)
-metrics_ide = calculate_metrics(y_test, y_pred_ide)
+y_pred_ide = model.fit(X_train, y_train).predict(X_train)
+metrics_ide = calculate_metrics(y_train, y_pred_ide)
 
 completion_time_ide = time.time() - start_time_ide
-append_metrics_to_csv('Hgbrt_IDE', metrics_ide, completion_time_ide)
-append_best_params_to_csv('Hgbrt_IDE', best_params_ide)
+append_metrics_to_csv('LightGBM_IDE', metrics_ide, completion_time_ide)
+append_best_params_to_csv('LightGBM_IDE', best_params_ide)
 
 print("Completed Improved Differential Evolution (IDE) with best parameters:", best_params_ide)

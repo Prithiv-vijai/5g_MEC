@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_predict
 from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, BayesianRidge
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, AdaBoostRegressor
@@ -16,6 +16,7 @@ import time  # Import time module for tracking completion time
 import xgboost as xgb
 from sklearn.ensemble import HistGradientBoostingRegressor
 import lightgbm as lgb
+from sklearn.model_selection import KFold
 
 # Create the directory if it doesn't exist
 output_dir = '../graphs/model_output/'
@@ -60,19 +61,25 @@ model_groups = {
 results = {}
 predictions = {}
 
-# Train and evaluate each model
+# Cross-validation setup
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+
+# Train and evaluate each model using cross-validation
 for group_name, models in model_groups.items():
     for name, model in models.items():
         start_time = time.time()  # Start time for the model training
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
+        
+        # Use cross_val_predict to get cross-validated predictions
+        y_pred = cross_val_predict(model, X_train, y_train, cv=kf)
+
         completion_time = time.time() - start_time  # Calculate completion time
 
-        mse = mean_squared_error(y_test, y_pred)
+        # Calculate metrics
+        mse = mean_squared_error(y_train, y_pred)
         rmse = np.sqrt(mse)
-        mae = mean_absolute_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
-        mape = mean_absolute_percentage_error(y_test, y_pred)
+        mae = mean_absolute_error(y_train, y_pred)
+        r2 = r2_score(y_train, y_pred)
+        mape = mean_absolute_percentage_error(y_train, y_pred)
 
         results[(group_name, name)] = {
             'Model Name': name,
